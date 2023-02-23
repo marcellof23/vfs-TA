@@ -7,7 +7,7 @@ import (
 	"github.com/chzyer/readline"
 )
 
-// setName gets a custom username from the current user.
+// setName gets a custom username from the current User.
 func setName() string {
 
 	var username string
@@ -33,11 +33,12 @@ func setName() string {
 			break
 		}
 	}
+
 	return username
 }
 
-// initUser initializes the user object on startup.
-func initUser() *user {
+// initUser initializes the User object on startup.
+func initUser() *User {
 	username := setName()
 	currentUser := createUser(username)
 	return currentUser

@@ -8,10 +8,10 @@ import (
 	"github.com/chzyer/readline"
 )
 
-// The main user object.
-type user struct {
+// The main User object.
+type User struct {
 	userID     string         // A randomized hash string representing the users's unique ID.
-	username   string         // The user's onscreen name.
+	username   string         // The User's onscreen name.
 	accessList map[string]int // A map containing the unique hashes and access rights for each file.
 }
 
@@ -23,22 +23,22 @@ func generateRandomID() string {
 	return base64.URLEncoding.EncodeToString(bytes)
 }
 
-// createUser creates a user object.
-func createUser(username string) *user {
-	return &user{
+// createUser creates a User object.
+func createUser(username string) *User {
+	return &User{
 		userID:   generateRandomID(),
 		username: username,
 	}
 }
 
-// updateUsername updates the name of the current user.
-func (currentUser *user) updateUsername(username string) {
+// updateUsername updates the name of the current User.
+func (currentUser *User) updateUsername(username string) {
 	currentUser.username = username
 }
 
 // initPrompt initializes the input buffer for the
 // shell.
-func (currentUser *user) initPrompt() *readline.Instance {
+func (currentUser *User) initPrompt() *readline.Instance {
 	autoCompleter := readline.NewPrefixCompleter(
 		readline.PcItem("open"),
 		readline.PcItem("close"),

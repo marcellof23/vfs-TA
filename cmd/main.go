@@ -1,14 +1,12 @@
 package main
 
 import (
+	"fmt"
 	"strings"
 )
 
-func shellLoop(currentUser *user) {
-	var shellFlag bool
-
-	//fs := boot.InitFilesystem()
-	shell := initShell()
+func shellLoop(currentUser *User) {
+	shells := initShell()
 	fs := initFilesystem()
 	prompt := currentUser.initPrompt()
 	for {
@@ -19,14 +17,16 @@ func shellLoop(currentUser *user) {
 		}
 
 		comms := strings.Split(input, " ")
-
-		fs, shellFlag = shell.execute(comms, fs)
-		if shellFlag == true {
-			continue
-		}
-
-		if shellFlag == true {
-			continue
+		if comms[0] == "cd" {
+			if len(comms) != 2 {
+				fmt.Println("Usage : cd [directory]")
+				continue
+			}
+			fs = shells.chDir(comms[1], fs)
+		} else if comms[0] == "clear" {
+			shells.clearScreen()
+		} else {
+			fs.execute(comms)
 		}
 	}
 }
@@ -53,5 +53,6 @@ func shellLoop(currentUser *user) {
 
 func main() {
 	currentUser := initUser()
+
 	shellLoop(currentUser)
 }
