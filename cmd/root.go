@@ -1,10 +1,10 @@
-package cmd
+package main
 
 import (
 	"github.com/spf13/cobra"
 )
 
-var file string
+var files string
 
 var rootCmd = &cobra.Command{
 	Use:   "vfs",
@@ -15,7 +15,7 @@ var rootCmd = &cobra.Command{
 }
 
 func Execute() error {
-	rootCmd.PersistentFlags().StringVarP(&file, "config", "c", "config.yaml", "Config file")
+	rootCmd.PersistentFlags().StringVarP(&files, "config", "c", "config.yaml", "Config file")
 
 	// sub commands are added in respective files
 	return rootCmd.Execute()
