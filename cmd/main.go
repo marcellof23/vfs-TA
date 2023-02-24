@@ -1,13 +1,17 @@
-package main
+package cmd
 
 import (
 	"fmt"
 	"strings"
+
+	"github.com/spf13/cobra"
 )
 
 func shellLoop(currentUser *User) {
+	fmt.Println("asdfsdfs")
 	shells := initShell()
 	fs := initFilesystem()
+	fmt.Println("asdfsdfs")
 	prompt := currentUser.initPrompt()
 	for {
 		input, _ := prompt.Readline()
@@ -31,28 +35,28 @@ func shellLoop(currentUser *User) {
 	}
 }
 
-//func init() {
-//	var apiCmd = &cobra.Command{
-//		Use:   "shell",
-//		Short: "Runs the main Shell Loop for the Filesystem",
-//		Run: func(cmd *cobra.Command, args []string) {
-//			configfile := files
-//			if len(args) != 0 {
-//				configfile = args[0]
-//			}
-//			fmt.Println(configfile)
-//
-//			currentUser := initUser()
-//
-//			shellLoop(currentUser)
-//		},
-//	}
-//
-//	rootCmd.AddCommand(apiCmd)
-//}
+func init() {
+	var apiCmd = &cobra.Command{
+		Use:   "shell",
+		Short: "Runs the main Shell Loop for the Filesystem",
+		Run: func(cmd *cobra.Command, args []string) {
+			configfile := files
+			if len(args) != 0 {
+				configfile = args[0]
+			}
+			fmt.Println(configfile)
 
-func main() {
-	currentUser := initUser()
+			currentUser := initUser()
 
-	shellLoop(currentUser)
+			shellLoop(currentUser)
+		},
+	}
+
+	rootCmd.AddCommand(apiCmd)
 }
+
+//func main() {
+//	currentUser := initUser()
+//
+//	shellLoop(currentUser)
+//}

@@ -1,4 +1,4 @@
-package main
+package cmd
 
 import (
 	"fmt"
@@ -19,6 +19,7 @@ func setName() string {
 	for {
 		fmt.Println("Please enter a username (1 for Anonymous):")
 		input, err := line.Readline()
+		fmt.Println(input, "AAA")
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -40,6 +41,7 @@ func setName() string {
 // initUser initializes the User object on startup.
 func initUser() *User {
 	username := setName()
+	fmt.Println(username)
 	currentUser := createUser(username)
 	return currentUser
 }
