@@ -5,14 +5,17 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
+
+	fsys "github.com/marcellof23/vfs-TA/pkg/fsys"
+	"github.com/marcellof23/vfs-TA/pkg/user"
 )
 
-func shellLoop(currentUser *User) {
+func shellLoop(currentUser *user.User) {
 	fmt.Println("asdfsdfs")
-	shells := initShell()
-	fs := initFilesystem()
+	shells := fsys.InitShell()
+	fs := fsys.InitFilesystem()
 	fmt.Println("asdfsdfs")
-	prompt := currentUser.initPrompt()
+	prompt := currentUser.InitPrompt()
 	for {
 		input, _ := prompt.Readline()
 		input = strings.TrimSpace(input)
@@ -26,11 +29,11 @@ func shellLoop(currentUser *User) {
 				fmt.Println("Usage : cd [directory]")
 				continue
 			}
-			fs = shells.chDir(comms[1], fs)
+			fs = shells.ChDir(comms[1], fs)
 		} else if comms[0] == "clear" {
-			shells.clearScreen()
+			shells.ClearScreen()
 		} else {
-			fs.execute(comms)
+			fs.Execute(comms)
 		}
 	}
 }
@@ -46,7 +49,7 @@ func init() {
 			}
 			fmt.Println(configfile)
 
-			currentUser := initUser()
+			currentUser := user.InitUser()
 
 			shellLoop(currentUser)
 		},
@@ -54,9 +57,3 @@ func init() {
 
 	rootCmd.AddCommand(apiCmd)
 }
-
-//func main() {
-//	currentUser := initUser()
-//
-//	shellLoop(currentUser)
-//}
