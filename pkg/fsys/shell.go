@@ -2,14 +2,17 @@ package fsys
 
 import (
 	"fmt"
+	"io/ioutil"
 	"os"
 	"os/exec"
 	"runtime"
-	"strings"
+
+	"github.com/marcellof23/vfs-TA/boot"
 )
 
 // our shell object.
 type shell struct {
+	Fs  *boot.Filesystem
 	env map[string]string // the environment varialbes.
 }
 
@@ -17,9 +20,10 @@ type shell struct {
 var env map[string]string
 
 // InitShell initializes our shell object.
-func InitShell() *shell {
+func InitShell(fs *boot.Filesystem) *shell {
 	env = make(map[string]string)
 	return &shell{
+		Fs:  fs,
 		env: env,
 	}
 }
@@ -43,51 +47,57 @@ func (s *shell) ClearScreen() {
 	}
 }
 
-// doesDirExist checks if the dirName directory exists.
-func (s *shell) doesDirExist(dirName string, fs *FileSystem) bool {
-	if _, found := fs.directories[dirName]; found {
-		return true
-	}
-	return false
-}
-
-// verifyPath ensures that the path in dirName exists.
-func (s *shell) verifyPath(dirName string, fs *FileSystem) *FileSystem {
-	checker := s.handleRootNav(dirName, fs)
-	segments := strings.Split(dirName, "/")
-
-	for _, segment := range segments {
-		if len(segment) == 0 {
-			continue
-		}
-		if segment == ".." {
-			if checker.prev == nil {
-				continue
-			}
-			checker = checker.prev
-		} else if s.doesDirExist(segment, checker) == true {
-			checker = checker.directories[segment]
-		} else {
-			fmt.Printf("Error : %s doesn't exist\n", dirName)
-			return fs
-		}
-	}
-	return checker
-}
-
-// handleRootNav determines if we'll be handling changing directory
-// starting from our root.
-func (s *shell) handleRootNav(dirName string, fs *FileSystem) *FileSystem {
-	if dirName[0] == '/' {
-		return root
-	}
-	return fs
-}
-
 // ChDir switches you to a different active directory.
-func (s *shell) ChDir(dirName string, fs *FileSystem) *FileSystem {
-	if dirName == "/" {
-		return root
+func (s *shell) ChDir(dirName string) {
+	fmt.Println("")
+}
+
+func (s *shell) reassemble(dirPath []string) string {
+	return ""
+}
+
+func (s *shell) readFile(filename string) {
+	dat, err := ioutil.ReadFile(filename)
+	if err != nil {
+		return
 	}
-	return s.verifyPath(dirName, fs)
+	fmt.Println(string(dat))
+}
+
+func (s *shell) cat(filename string) {
+	fmt.Println("")
+}
+
+func (s *shell) usage(comms []string) bool {
+	switch comms[0] {
+	case "cd":
+		if len(comms) != 2 {
+			fmt.Println("Usage : cd [target directory")
+			return true
+		}
+	case "Cat":
+		if len(comms) != 2 {
+			fmt.Println("Usage : Cat [target file]")
+			return true
+		}
+	}
+	return true
+}
+
+func (s *shell) Execute(comms []string) bool {
+
+	if s.usage(comms) == false {
+		return false
+	}
+	switch comms[0] {
+	case "cd":
+		s.ChDir(comms[1])
+	case "Cat":
+		s.cat(comms[1])
+	case "clear":
+		s.ClearScreen()
+	default:
+		return false
+	}
+	return true
 }

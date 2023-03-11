@@ -3,139 +3,106 @@ package fsys
 import (
 	"fmt"
 	"os"
+
+	"github.com/marcellof23/vfs-TA/boot"
 )
 
-// A global list of all files created and their respective names for
-// ease of lookup.
-var globalFileTable map[uint64]string
-
-// The data structure for each File.
-type File struct {
-	name     string // The name of the File.
-	rootPath string // The absolute path of the File.
-	fileHash uint64 // The unique File hash assigned to this File on creation.
-	fileType string // The type of the File.
-	content  []byte // The File's content in bytes.
-	size     uint64 // The size in bytes of the File.
+type filesystem struct {
+	*boot.Filesystem
 }
 
-//  The core struct that makes up the filesystem's File/directory
-type FileSystem struct {
-	name        string                 // The name of the current directory we're in.
-	rootPath    string                 // The absolute path to this directory.
-	files       []File                 // The list of files in this directory.
-	directories map[string]*FileSystem // The list of directories in this directory.
-	prev        *FileSystem            // a reference pointer to this directory's parent directory.
+func New(fs *boot.Filesystem) boot.FilesystemIntf {
+	return &filesystem{fs}
 }
 
-// Root node.
-var root *FileSystem
-
-// InitFilesystem scans the current directory and builds the VFS from it.
-func InitFilesystem() *FileSystem {
-	// recursively grab all files and directories from this level downwards.
-	root = &FileSystem{
-		name:        ".",
-		rootPath:    ".",
-		directories: make(map[string]*FileSystem),
-	}
-	fs := root
-	fmt.Println("Welcome to the tiny virtual filesystem.")
-	return fs
+// pwd prints pwd() the current working directory.
+func (fs *filesystem) Pwd() {
+	fmt.Println("")
 }
 
-// pwd prints the current working directory.
-func (fs *FileSystem) pwd() {
-	fmt.Println(fs.rootPath)
-}
-
-// reloadFilesys Resets the VFS and scraps all changes made up to this point.
+// ReloadFilesys Resets the VFS and scraps all changes made up to this point.
 // (basically like a rerun of InitFilesystem())
-func (fs *FileSystem) reloadFilesys() {
+func (fs *filesystem) ReloadFilesys() {
 	fmt.Println("Refreshing...")
 }
 
-// tearDown gracefully ends the current session.
-func (fs *FileSystem) tearDown() {
+// TearDown gracefully ends the current session.
+func (fs *filesystem) TearDown() {
 	fmt.Println("Teardown")
 }
 
-// saveState aves the state of the VFS at this time.
-func (fs *FileSystem) saveState() {
+func (fs *filesystem) Cat(file string) {
+	fmt.Println("")
+}
+
+func (fs *filesystem) Touch(filename string) bool {
+	return true
+}
+
+// SaveState aves the state of the VFS at this time.
+func (fs *filesystem) SaveState() {
 	fmt.Println("Save the current state of the VFS")
 }
 
-// open will allow for opening files in virtual space.
-func (fs *FileSystem) open() error {
-	fmt.Println("open() called")
+// Open will allow for opening files in virtual space.
+func (fs *filesystem) Open() error {
+	fmt.Println("Open() called")
 	return nil
 }
 
-// close closes open virtual files.
-func (fs *FileSystem) close() error {
-	fmt.Println("close() called")
+// Close closes Open virtual files.
+func (fs *filesystem) Close() error {
+	fmt.Println("Close() called")
 	return nil
 }
 
-// mkDir makes a virtual directory.
-func (fs *FileSystem) mkDir(dirName string) bool {
-
-	if _, exists := fs.directories[dirName]; exists {
-		fmt.Println("mkdir : directory already exists")
-		return false
+// MkDir makes a virtual directory.
+func (fs *filesystem) MkDir(dirName string) bool {
+	err := fs.MFS.Mkdir(file, 0o700)
+	if err != nil {
+		fmt.Println(err)
 	}
-
-	newDir := &FileSystem{
-		name:        dirName,
-		rootPath:    fs.rootPath + "/" + dirName,
-		directories: make(map[string]*FileSystem),
-		prev:        fs,
-	}
-	fs.directories[dirName] = newDir
-	return false
+	info, err := fs.MFS.Stat(file)
+	fmt.Println(info.Mode().String())
+	return true
 }
 
-// removeFile removes a File from the virtual filesystem.
-func (fs *FileSystem) removeFile() error {
-	fmt.Println("removeFile() called")
+// RemoveFile removes a File from the virtual filesystem.
+func (fs *filesystem) RemoveFile() error {
+	fmt.Println("RemoveFile() called")
 	return nil
 }
 
-// removeDir removes a directory from the virtual filesystem.
-func (fs *FileSystem) removeDir() error {
-	fmt.Println("removeDir() called")
+const file = "hello"
+
+// RemoveDir removes a directory from the virtual filesystem.
+func (fs *filesystem) RemoveDir(path string) error {
+	err := fs.MFS.RemoveAll(path)
+	if err != nil {
+		fmt.Println(err)
+		return err
+	}
+
 	return nil
 }
 
-// listDir lists a directory's contents.
-func (fs *FileSystem) listDir() {
-
-	if fs.files != nil {
-		fmt.Println("File:")
-		for _, file := range fs.files {
-			fmt.Printf("\t%s\n", file.name)
-		}
-	}
-	if len(fs.directories) > 0 {
-		fmt.Println("Directories:")
-		for dirName := range fs.directories {
-			fmt.Printf("\t%s\n", dirName)
-		}
-	}
+// ListDir lists a directory's contents.
+func (fs *filesystem) ListDir() {
+	fs.MFS.List()
 }
 
-// usage prints verifies that each command has the correct amount of
+// Usage prints verifies that each command has the correct amount of
 // command arguments and throws an error if not.
-func (fs *FileSystem) usage(comms []string) bool {
+func (fs *filesystem) Usage(comms []string) bool {
 	switch comms[0] {
 	case "mkdir":
 		if len(comms) < 2 {
 			fmt.Println("Usage : mkdir [list of directories to make]")
 			return false
 		}
-	case "open":
+	case "Open":
 		if len(comms) != 2 {
-			fmt.Println("Usage : open [File name]")
+			fmt.Println("Usage : Open [File name]")
 			return false
 		}
 	}
@@ -143,29 +110,30 @@ func (fs *FileSystem) usage(comms []string) bool {
 }
 
 // Execute runs the commands passed into it.
-func (fs *FileSystem) Execute(comms []string) *FileSystem {
-	if fs.usage(comms) == false {
-		return fs
+func (fs *filesystem) Execute(comms []string) bool {
+	if fs.Usage(comms) == false {
+		return false
 	}
 	switch comms[0] {
 	case "mkdir":
-		fs.mkDir(comms[1])
+		fs.MkDir(comms[1])
 	case "pwd":
-		fs.pwd()
-	case "open":
-		fs.open()
-	case "close":
-		fs.close()
+		fs.Pwd()
+	case "Open":
+		fs.Open()
+	case "Close":
+		fs.Close()
 	case "ls":
-		fs.listDir()
+		fs.ListDir()
 	case "rm":
-		fs.removeFile()
-		fs.removeDir()
+		fs.RemoveFile()
+		fs.RemoveDir(comms[1])
 	case "exit":
-		fs.tearDown()
+		fs.TearDown()
 		os.Exit(1)
 	default:
 		fmt.Println(comms[0], ": Command not found")
+		return false
 	}
-	return fs
+	return true
 }

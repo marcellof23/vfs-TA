@@ -48,9 +48,10 @@ func (currentUser *User) InitPrompt() *readline.Instance {
 		readline.PcItem("rm"),
 		readline.PcItem("exit"),
 	)
+
 	prompt, err := readline.NewEx(&readline.Config{
 		Prompt:          currentUser.username + "$>",
-		HistoryFile:     "/tmp/readline.tmp",
+		HistoryFile:     "/tmp/commands.tmp",
 		AutoComplete:    autoCompleter,
 		InterruptPrompt: "^C",
 		EOFPrompt:       "exit",

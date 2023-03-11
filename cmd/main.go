@@ -6,16 +6,20 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/marcellof23/vfs-TA/boot"
 	fsys "github.com/marcellof23/vfs-TA/pkg/fsys"
 	"github.com/marcellof23/vfs-TA/pkg/user"
 )
 
 func shellLoop(currentUser *user.User) {
-	fmt.Println("asdfsdfs")
-	shells := fsys.InitShell()
-	fs := fsys.InitFilesystem()
-	fmt.Println("asdfsdfs")
+	var shellFlag bool
+
+	fs := boot.InitFilesystem()
 	prompt := currentUser.InitPrompt()
+
+	shells := fsys.InitShell(fs)
+	Fsys := fsys.New(fs)
+
 	for {
 		input, _ := prompt.Readline()
 		input = strings.TrimSpace(input)
@@ -24,16 +28,14 @@ func shellLoop(currentUser *user.User) {
 		}
 
 		comms := strings.Split(input, " ")
-		if comms[0] == "cd" {
-			if len(comms) != 2 {
-				fmt.Println("Usage : cd [directory]")
-				continue
-			}
-			fs = shells.ChDir(comms[1], fs)
-		} else if comms[0] == "clear" {
-			shells.ClearScreen()
-		} else {
-			fs.Execute(comms)
+		shellFlag = shells.Execute(comms)
+		if shellFlag {
+			continue
+		}
+
+		shellFlag = Fsys.Execute(comms)
+		if shellFlag {
+			continue
 		}
 	}
 }
