@@ -3,21 +3,70 @@ package fsys
 import (
 	"fmt"
 	"os"
+	"runtime"
 
 	"github.com/marcellof23/vfs-TA/boot"
+	"github.com/marcellof23/vfs-TA/constant"
 )
+
+type file struct {
+	name     string // The name of the file.
+	rootPath string // The absolute path of the file.
+}
+
+type fileSystem struct {
+	name        string                 // The name of the current directory we're in.
+	rootPath    string                 // The absolute path to this directory.
+	files       map[string]*file       // The list of files in this directory.
+	directories map[string]*filesystem // The list of directories in this directory.
+	prev        *filesystem            // a reference pointer to this directory's parent directory.
+}
 
 type filesystem struct {
 	*boot.Filesystem
+	*fileSystem
 }
 
-func New(fs *boot.Filesystem) boot.FilesystemIntf {
-	return &filesystem{fs}
+// Root node.
+var root *filesystem
+
+func PrintMemUsage() {
+	var m runtime.MemStats
+	runtime.ReadMemStats(&m)
+	// For info on each, see: https://golang.org/pkg/runtime/#MemStats
+	fmt.Printf("Alloc = %v MiB", bToMb(m.Alloc))
+	fmt.Printf("\tTotalAlloc = %v MiB", bToMb(m.TotalAlloc))
+	fmt.Printf("\tSys = %v MiB", bToMb(m.Sys))
+	fmt.Printf("\tNumGC = %v\n", m.NumGC)
+}
+
+func bToMb(b uint64) uint64 {
+	return b / 1024 / 1024
+}
+
+func New(fs *boot.Filesystem) *filesystem {
+
+	root = makeFilesystem(".", ".", nil)
+	root.Filesystem = fs
+	fsys := root
+	return fsys
+}
+
+func makeFilesystem(dirName string, rootPath string, prev *filesystem) *filesystem {
+	return &filesystem{
+		nil,
+		&fileSystem{
+			name:        dirName,
+			rootPath:    rootPath,
+			directories: make(map[string]*filesystem),
+			prev:        prev,
+		},
+	}
 }
 
 // pwd prints pwd() the current working directory.
 func (fs *filesystem) Pwd() {
-	fmt.Println("")
+	fmt.Println(fs.rootPath)
 }
 
 // ReloadFilesys Resets the VFS and scraps all changes made up to this point.
@@ -58,26 +107,58 @@ func (fs *filesystem) Close() error {
 
 // MkDir makes a virtual directory.
 func (fs *filesystem) MkDir(dirName string) bool {
-	err := fs.MFS.Mkdir(file, 0o700)
+	err := fs.MFS.MkdirAll(dirName, 0o700)
 	if err != nil {
 		fmt.Println(err)
+		return false
 	}
-	info, err := fs.MFS.Stat(file)
-	fmt.Println(info.Mode().String())
+
+	if _, exists := fs.directories[dirName]; exists {
+		fmt.Println("mkdir : directory already exists")
+		return false
+	}
+	newDir := &fileSystem{
+		name:        dirName,
+		rootPath:    fs.rootPath + "/" + dirName,
+		files:       make(map[string]*file),
+		directories: make(map[string]*filesystem),
+		prev:        fs,
+	}
+
+	fs.directories[dirName] = &filesystem{fs.Filesystem, newDir}
 	return true
 }
 
 // RemoveFile removes a File from the virtual filesystem.
-func (fs *filesystem) RemoveFile() error {
-	fmt.Println("RemoveFile() called")
+func (fs *filesystem) RemoveFile(filename string) error {
+	delete(fs.files, filename)
+
+	var prefixPath string
+	if fs.rootPath == "." {
+		prefixPath = fs.rootPath + "/"
+	}
+
+	absPath := prefixPath + filename
+	err := fs.MFS.Remove(absPath)
+	if err != nil {
+		fmt.Println(err)
+		return err
+	}
+
 	return nil
 }
 
-const file = "hello"
-
 // RemoveDir removes a directory from the virtual filesystem.
 func (fs *filesystem) RemoveDir(path string) error {
-	err := fs.MFS.RemoveAll(path)
+	delete(fs.directories, path)
+
+	var prefixPath string
+	if fs.rootPath == "." {
+		prefixPath += "/"
+	}
+
+	absPath := prefixPath + path
+	err := fs.MFS.RemoveAll(absPath)
 	if err != nil {
 		fmt.Println(err)
 		return err
@@ -88,7 +169,17 @@ func (fs *filesystem) RemoveDir(path string) error {
 
 // ListDir lists a directory's contents.
 func (fs *filesystem) ListDir() {
-	fs.MFS.List()
+	if fs.files != nil {
+		for _, file := range fs.files {
+			fmt.Printf("%s\n", file.name)
+		}
+	}
+	if len(fs.directories) > 0 {
+		for dirName := range fs.directories {
+			fmt.Println(constant.ColorBlue, dirName)
+		}
+		fmt.Print(constant.ColorReset)
+	}
 }
 
 // Usage prints verifies that each command has the correct amount of
@@ -126,7 +217,7 @@ func (fs *filesystem) Execute(comms []string) bool {
 	case "ls":
 		fs.ListDir()
 	case "rm":
-		fs.RemoveFile()
+		fs.RemoveFile(comms[1])
 		fs.RemoveDir(comms[1])
 	case "exit":
 		fs.TearDown()

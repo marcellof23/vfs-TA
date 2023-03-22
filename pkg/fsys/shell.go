@@ -6,26 +6,23 @@ import (
 	"os"
 	"os/exec"
 	"runtime"
-
-	"github.com/marcellof23/vfs-TA/boot"
+	"strings"
 )
 
 // our shell object.
 type shell struct {
-	Fs  *boot.Filesystem
-	env map[string]string // the environment varialbes.
+	Fs *filesystem
 }
 
-// Env variable stores current directory infomration.
-var env map[string]string
-
 // InitShell initializes our shell object.
-func InitShell(fs *boot.Filesystem) *shell {
-	env = make(map[string]string)
+func InitShell(fs *filesystem) *shell {
 	return &shell{
-		Fs:  fs,
-		env: env,
+		Fs: fs,
 	}
+}
+
+func (s *shell) SetFilesystem(fs *filesystem) {
+	s.Fs = fs
 }
 
 // ClearScreen clears the terminal screen.
@@ -49,7 +46,48 @@ func (s *shell) ClearScreen() {
 
 // ChDir switches you to a different active directory.
 func (s *shell) ChDir(dirName string) {
-	fmt.Println("")
+	if dirName == "/" {
+		s.Fs = root
+		return
+	}
+	s.Fs = s.verifyPath(dirName)
+}
+
+func (s *shell) doesDirExist(dirName string, fs *filesystem) bool {
+	if _, found := fs.directories[dirName]; found {
+		return true
+	}
+	return false
+}
+
+func (s *shell) verifyPath(dirName string) *filesystem {
+	checker := s.handleRootNav(dirName)
+	segments := strings.Split(dirName, "/")
+
+	for _, segment := range segments {
+		if len(segment) == 0 {
+			continue
+		}
+		if segment == ".." {
+			if checker.prev == nil {
+				continue
+			}
+			checker = checker.prev
+		} else if s.doesDirExist(segment, checker) == true {
+			checker = checker.directories[segment]
+		} else {
+			fmt.Printf("Error : %s doesn't exist\n", dirName)
+			return s.Fs
+		}
+	}
+	return checker
+}
+
+func (s *shell) handleRootNav(dirName string) *filesystem {
+	if dirName[0] == '/' {
+		return root
+	}
+	return s.Fs
 }
 
 func (s *shell) reassemble(dirPath []string) string {

@@ -17,8 +17,8 @@ func shellLoop(currentUser *user.User) {
 	fs := boot.InitFilesystem()
 	prompt := currentUser.InitPrompt()
 
-	shells := fsys.InitShell(fs)
 	Fsys := fsys.New(fs)
+	shells := fsys.InitShell(Fsys)
 
 	for {
 		input, _ := prompt.Readline()
@@ -32,8 +32,11 @@ func shellLoop(currentUser *user.User) {
 		if shellFlag {
 			continue
 		}
+		Fsys = shells.Fs
 
 		shellFlag = Fsys.Execute(comms)
+		shells.SetFilesystem(Fsys)
+
 		if shellFlag {
 			continue
 		}

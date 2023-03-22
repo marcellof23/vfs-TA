@@ -18,7 +18,7 @@ type FilesystemIntf interface {
 	Open() error
 	Close() error
 	MkDir(dirName string) bool
-	RemoveFile() error
+	RemoveFile(filename string) error
 	RemoveDir(path string) error
 	ListDir()
 	Usage(comms []string) bool
