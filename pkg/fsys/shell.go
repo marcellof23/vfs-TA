@@ -103,7 +103,24 @@ func (s *shell) readFile(filename string) {
 }
 
 func (s *shell) cat(filename string) {
-	fmt.Println("")
+	segments := strings.Split(filename, "/")
+	if len(segments) == 1 {
+		if _, exists := s.Fs.files[filename]; exists {
+			s.readFile(s.Fs.files[filename].rootPath)
+		} else {
+			fmt.Println("cat : file doesn't exist")
+		}
+	} else {
+		dirPath := s.reassemble(segments)
+		tmp := s.verifyPath(dirPath)
+
+		if _, exists := tmp.files[segments[len(segments)-1]]; exists {
+			s.readFile(tmp.files[segments[len(segments)-1]].rootPath)
+			fmt.Println("File exists")
+		} else {
+			fmt.Println("cat : file doesn't exist")
+		}
+	}
 }
 
 func (s *shell) usage(comms []string) bool {
@@ -130,7 +147,7 @@ func (s *shell) Execute(comms []string) bool {
 	switch comms[0] {
 	case "cd":
 		s.ChDir(comms[1])
-	case "Cat":
+	case "cat":
 		s.cat(comms[1])
 	case "clear":
 		s.ClearScreen()

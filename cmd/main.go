@@ -6,7 +6,6 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/marcellof23/vfs-TA/boot"
 	fsys "github.com/marcellof23/vfs-TA/pkg/fsys"
 	"github.com/marcellof23/vfs-TA/pkg/user"
 )
@@ -14,10 +13,9 @@ import (
 func shellLoop(currentUser *user.User) {
 	var shellFlag bool
 
-	fs := boot.InitFilesystem()
 	prompt := currentUser.InitPrompt()
 
-	Fsys := fsys.New(fs)
+	Fsys := fsys.New()
 	shells := fsys.InitShell(Fsys)
 
 	for {

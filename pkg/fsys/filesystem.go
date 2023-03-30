@@ -2,8 +2,10 @@ package fsys
 
 import (
 	"fmt"
+	"io/ioutil"
 	"os"
-	"runtime"
+	"path/filepath"
+	"strings"
 
 	"github.com/marcellof23/vfs-TA/boot"
 	"github.com/marcellof23/vfs-TA/constant"
@@ -30,34 +32,55 @@ type filesystem struct {
 // Root node.
 var root *filesystem
 
-func PrintMemUsage() {
-	var m runtime.MemStats
-	runtime.ReadMemStats(&m)
-	// For info on each, see: https://golang.org/pkg/runtime/#MemStats
-	fmt.Printf("Alloc = %v MiB", bToMb(m.Alloc))
-	fmt.Printf("\tTotalAlloc = %v MiB", bToMb(m.TotalAlloc))
-	fmt.Printf("\tSys = %v MiB", bToMb(m.Sys))
-	fmt.Printf("\tNumGC = %v\n", m.NumGC)
-}
+func New() *filesystem {
+	// uncomment for recursively grab all files and directories from this level downwards.
+	root = replicateFilesystem(".", nil)
 
-func bToMb(b uint64) uint64 {
-	return b / 1024 / 1024
-}
-
-func New(fs *boot.Filesystem) *filesystem {
-
-	root = makeFilesystem(".", ".", nil)
-	root.Filesystem = fs
+	// root = makeFilesystem(".", ".", nil)
 	fsys := root
 	return fsys
 }
 
+// testFilessytemCreation initializes the filesystem by replicating
+// the current root directory and all it's child direcctories.
+func replicateFilesystem(dirName string, fs *filesystem) *filesystem {
+	var fi os.FileInfo
+	var fileName os.FileInfo
+
+	if dirName == "." {
+		root = makeFilesystem(".", ".", nil)
+		fs = root
+	}
+	index := 0
+	files, _ := ioutil.ReadDir(dirName)
+	for index < len(files) {
+		fileName = files[index]
+		fi, _ = os.Stat(dirName + "//" + fileName.Name())
+		mode := fi.Mode()
+		if mode.IsDir() {
+			fs.directories[fileName.Name()] = makeFilesystem(fileName.Name(), strings.ReplaceAll(dirName, "//", "/")+"/"+fileName.Name(), fs)
+			replicateFilesystem(dirName+"//"+fileName.Name(), fs.directories[fileName.Name()])
+		} else {
+			fs.files[fileName.Name()] = &file{
+				name:     fileName.Name(),
+				rootPath: strings.ReplaceAll(dirName, "//", "/") + "/" + fileName.Name(),
+			}
+			fs.MFS.Create(fs.files[fileName.Name()].rootPath + "/" + fileName.Name())
+		}
+
+		index++
+	}
+	return fs
+}
+
 func makeFilesystem(dirName string, rootPath string, prev *filesystem) *filesystem {
+	fs := boot.InitFilesystem()
 	return &filesystem{
-		nil,
+		fs,
 		&fileSystem{
 			name:        dirName,
 			rootPath:    rootPath,
+			files:       make(map[string]*file),
 			directories: make(map[string]*filesystem),
 			prev:        prev,
 		},
@@ -81,10 +104,29 @@ func (fs *filesystem) TearDown() {
 }
 
 func (fs *filesystem) Cat(file string) {
-	fmt.Println("")
+	if _, exists := fs.files[file]; exists {
+		fileObj, _ := fs.MFS.Open(fs.rootPath + "/" + file)
+		var fileObjContent []byte
+		cnt, err := fileObj.Read(fileObjContent)
+		if cnt != 0 && err != nil {
+			fmt.Println(string(fileObjContent))
+		}
+	} else {
+		fmt.Println("cat : file doesn't exist")
+	}
 }
 
 func (fs *filesystem) Touch(filename string) bool {
+	fs.MFS.Create(fs.rootPath + "/" + filename)
+	if _, exists := fs.files[filename]; exists {
+		fmt.Printf("touch : file already exists")
+		return false
+	}
+	newFile := &file{
+		name:     filename,
+		rootPath: fs.rootPath + "/" + filename,
+	}
+	fs.files[filename] = newFile
 	return true
 }
 
@@ -119,7 +161,7 @@ func (fs *filesystem) MkDir(dirName string) bool {
 	}
 	newDir := &fileSystem{
 		name:        dirName,
-		rootPath:    fs.rootPath + "/" + dirName,
+		rootPath:    filepath.Join(fs.rootPath, dirName),
 		files:       make(map[string]*file),
 		directories: make(map[string]*filesystem),
 		prev:        fs,
@@ -131,8 +173,6 @@ func (fs *filesystem) MkDir(dirName string) bool {
 
 // RemoveFile removes a File from the virtual filesystem.
 func (fs *filesystem) RemoveFile(filename string) error {
-	delete(fs.files, filename)
-
 	var prefixPath string
 	if fs.rootPath == "." {
 		prefixPath = fs.rootPath + "/"
@@ -144,14 +184,13 @@ func (fs *filesystem) RemoveFile(filename string) error {
 		fmt.Println(err)
 		return err
 	}
+	delete(fs.files, filename)
 
 	return nil
 }
 
 // RemoveDir removes a directory from the virtual filesystem.
 func (fs *filesystem) RemoveDir(path string) error {
-	delete(fs.directories, path)
-
 	var prefixPath string
 	if fs.rootPath == "." {
 		prefixPath += "/"
@@ -163,6 +202,7 @@ func (fs *filesystem) RemoveDir(path string) error {
 		fmt.Println(err)
 		return err
 	}
+	delete(fs.directories, path)
 
 	return nil
 }
@@ -191,12 +231,23 @@ func (fs *filesystem) Usage(comms []string) bool {
 			fmt.Println("Usage : mkdir [list of directories to make]")
 			return false
 		}
+	case "cat":
+		if len(comms) < 2 {
+			fmt.Println("Usage : cat [list of directories to make]")
+			return false
+		}
+	case "rm":
+		if len(comms) < 2 {
+			fmt.Println("Usage : rm [File name]")
+			return false
+		}
 	case "Open":
 		if len(comms) != 2 {
 			fmt.Println("Usage : Open [File name]")
 			return false
 		}
 	}
+
 	return true
 }
 
@@ -210,6 +261,8 @@ func (fs *filesystem) Execute(comms []string) bool {
 		fs.MkDir(comms[1])
 	case "pwd":
 		fs.Pwd()
+	case "cat":
+		fs.Cat(comms[1])
 	case "Open":
 		fs.Open()
 	case "Close":
