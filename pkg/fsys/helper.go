@@ -7,13 +7,10 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/edsrzf/mmap-go"
-	"github.com/spf13/afero"
-
 	"github.com/marcellof23/vfs-TA/boot"
 )
 
-type WalkDirFunc func(path string, d fileDir, err error) error
+type WalkDirFunc func(path string, fs *filesystem, err error) error
 
 func New() *filesystem {
 	// uncomment for recursively grab all files and directories from this level downwards.
@@ -40,20 +37,26 @@ func replicateFilesystem(dirName string, fs *filesystem) *filesystem {
 		fileName = files[index]
 		fi, _ = os.Stat(dirName + "//" + fileName.Name())
 		mode := fi.Mode()
+
 		if mode.IsDir() {
-			fs.directories[fileName.Name()] = makeFilesystem(fileName.Name(), strings.ReplaceAll(dirName, "//", "/")+"/"+fileName.Name(), fs)
-			err := fs.MFS.MkdirAll(fileName.Name(), 0o700)
-			if err != nil {
-				fmt.Println(err)
-			}
-			replicateFilesystem(dirName+"//"+fileName.Name(), fs.directories[fileName.Name()])
-		} else {
-			fs.files[fileName.Name()] = &file{
-				name:     fileName.Name(),
-				rootPath: strings.ReplaceAll(dirName, "//", "/") + "/" + fileName.Name(),
+			if fileName.Name() != "vendor" && fileName.Name() != ".git" {
+				fs.directories[fileName.Name()] = makeFilesystem(fileName.Name(), strings.ReplaceAll(dirName, "//", "/")+"/"+fileName.Name(), fs)
+				err := fs.MFS.MkdirAll(fileName.Name(), 0o700)
+				if err != nil {
+					fmt.Println(err)
+				}
+				replicateFilesystem(dirName+"//"+fileName.Name(), fs.directories[fileName.Name()])
 			}
 
-			fs.MFS.Create(fs.files[fileName.Name()].rootPath)
+		} else {
+			if fileName.Name() != "vendor" && fileName.Name() != ".git" {
+				fs.files[fileName.Name()] = &file{
+					name:     fileName.Name(),
+					rootPath: strings.ReplaceAll(dirName, "//", "/") + "/" + fileName.Name(),
+				}
+
+				fs.MFS.Create(fs.files[fileName.Name()].rootPath)
+			}
 		}
 
 		index++
@@ -75,54 +78,63 @@ func makeFilesystem(dirName string, rootPath string, prev *filesystem) *filesyst
 	}
 }
 
-func walkDir(filesys *boot.Filesystem, fs afero.Fs, root string, walkFn filepath.WalkFunc) error {
-	// Open the root directory.
-	f, err := fs.Open(root)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
+func walkDir(fsys *filesystem, path string, walkDirFn WalkDirFunc) error {
 
-	// Read the file info for the root directory.
-	info, err := f.Stat()
+	err := walkDirFn(path, fsys, nil)
 	if err != nil {
 		return err
 	}
 
-	// If the root directory is a file, call the walk function with its info.
-	if !info.IsDir() {
-		return walkFn(root, info, nil)
+	if fsys.files != nil {
+		for _, fl := range fsys.files {
+			var pathName string
+			if path != "." {
+				pathName = filepath.Join(path, fl.name)
+			} else {
+				pathName = fl.name
+			}
+			walkDirFn(pathName, fsys, nil)
+		}
 	}
 
-	// Otherwise, walk through the root directory and call the walk function for each file or subdirectory.
-	return afero.Walk(fs, root, func(path string, info os.FileInfo, err error) error {
+	if len(fsys.directories) > 0 {
+		for dirName := range fsys.directories {
+			name1 := filepath.Join(fsys.rootPath, dirName)
+			if err := walkDir(fsys.directories[dirName], name1, walkDirFn); err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
+func Walkdir(fsys *filesystem, pathTarget string, walkDirFn WalkDirFunc) error {
+	if fsys.rootPath == pathTarget {
+		err := walkDir(fsys, pathTarget, walkDirFn)
 		if err != nil {
 			return err
 		}
-		if info.IsDir() {
-			return nil // skip directories
-		}
+	}
 
-		// Open the file using mmap.
-		f, err := fs.Open(path)
-		if err != nil {
-			return err
+	if fsys.files != nil {
+		for _, _ = range fsys.files {
+			err := walkDir(fsys, pathTarget, walkDirFn)
+			if err != nil {
+				return err
+			}
 		}
-		defer f.Close()
+	}
 
-		osFile, err := os.Open(f.Name())
-		if err != nil {
-			fmt.Println(err)
+	if len(fsys.directories) > 0 {
+		for dirName := range fsys.directories {
+			fmt.Println("Directories: ", dirName)
+			name1 := filepath.Join(fsys.rootPath, dirName)
+			if err := walkDir(fsys.directories[dirName], name1, walkDirFn); err != nil {
+				return err
+			}
 		}
-		defer osFile.Close()
+	}
 
-		// Map the file to memory.
-		data, err := mmap.Map(osFile, mmap.RDONLY, 0)
-		if err != nil {
-			return err
-		}
-		defer data.Unmap()
-		// Call the walk function with the file info and mmap data.
-		return walkFn(path, info, err)
-	})
+	return nil
 }

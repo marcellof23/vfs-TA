@@ -50,7 +50,12 @@ func (s *shell) ChDir(dirName string) {
 		s.Fs = root
 		return
 	}
-	s.Fs = s.verifyPath(dirName)
+
+	fsVerified, err := s.verifyPath(dirName)
+	if err != nil {
+		return
+	}
+	s.Fs = fsVerified
 }
 
 func (s *shell) doesDirExist(dirName string, fs *filesystem) bool {
@@ -60,7 +65,17 @@ func (s *shell) doesDirExist(dirName string, fs *filesystem) bool {
 	return false
 }
 
-func (s *shell) verifyPath(dirName string) *filesystem {
+func (s *shell) doesFileExists(pathName string) bool {
+	if pathName[0] == '/' {
+		if _, found := s.Fs.files[pathName]; found {
+			return true
+		}
+	}
+
+	return false
+}
+
+func (s *shell) verifyPath(dirName string) (*filesystem, error) {
 	checker := s.handleRootNav(dirName)
 	segments := strings.Split(dirName, "/")
 
@@ -77,10 +92,10 @@ func (s *shell) verifyPath(dirName string) *filesystem {
 			checker = checker.directories[segment]
 		} else {
 			fmt.Printf("Error : %s doesn't exist\n", dirName)
-			return s.Fs
+			return s.Fs, fmt.Errorf("Error : %s doesn't exist\n", dirName)
 		}
 	}
-	return checker
+	return checker, nil
 }
 
 func (s *shell) handleRootNav(dirName string) *filesystem {
@@ -112,7 +127,7 @@ func (s *shell) cat(filename string) {
 		}
 	} else {
 		dirPath := s.reassemble(segments)
-		tmp := s.verifyPath(dirPath)
+		tmp, _ := s.verifyPath(dirPath)
 
 		if _, exists := tmp.files[segments[len(segments)-1]]; exists {
 			s.readFile(tmp.files[segments[len(segments)-1]].rootPath)

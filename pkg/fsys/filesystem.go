@@ -5,9 +5,8 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/spf13/afero"
-
 	"github.com/marcellof23/vfs-TA/boot"
+	"github.com/marcellof23/vfs-TA/constant"
 )
 
 type file struct {
@@ -45,6 +44,22 @@ func (fs *filesystem) ReloadFilesys() {
 // TearDown gracefully ends the current session.
 func (fs *filesystem) TearDown() {
 	fmt.Println("Teardown")
+}
+
+// TearDown gracefully ends the current session.
+func (fs *filesystem) Stat() error {
+	info, err := fs.MFS.Stat(fs.rootPath)
+	if err != nil {
+		fmt.Println(err)
+		return err
+	} else {
+		fmt.Println("File: ", info.Name())
+		fmt.Println("Size: ", info.Size())
+		fmt.Println("Access: ", info.Mode())
+		fmt.Println("Modify: ", info.ModTime())
+	}
+
+	return nil
 }
 
 func (fs *filesystem) Cat(file string) {
@@ -151,49 +166,35 @@ func (fs *filesystem) RemoveDir(path string) error {
 	return nil
 }
 
+// Remove removes a directory or file from the virtual filesystem.
+func (fs *filesystem) Remove(path string) error {
+	fs.MFS.Stat(path)
+	return nil
+}
+
 // ListDir lists a directory's contents.
 func (fs *filesystem) ListDir() {
-	//if fs.files != nil {
-	//	for _, file := range fs.files {
-	//		fmt.Printf("%s\n", file.name)
-	//	}
-	//}
-	//if len(fs.directories) > 0 {
-	//	for dirName := range fs.directories {
-	//		fmt.Println(constant.ColorBlue, dirName)
-	//	}
-	//	fmt.Print(constant.ColorReset)
-	//}
-
-	walkFn := func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			fmt.Println(err)
-			return nil
+	if fs.files != nil {
+		for _, file := range fs.files {
+			fmt.Printf("%s\n", file.name)
 		}
-		fmt.Println(path)
+	}
+	if len(fs.directories) > 0 {
+		for dirName := range fs.directories {
+			fmt.Println(constant.ColorBlue, dirName)
+		}
+		fmt.Print(constant.ColorReset)
+	}
+}
+
+func (fs *filesystem) Testing() {
+
+	walkFn := func(path string, fs *filesystem, err error) error {
+		fmt.Printf("%s \n", path)
 		return nil
 	}
 
-	// Use afero.Walk to get a list of all files and directories in the file system.
-	// Then, use filepath.Walk to perform the actual traversal and call walkFn for each file.
-	if err := afero.Walk(fs.MFS, ".", func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			fmt.Println(err)
-			return nil
-		}
-		return filepath.Walk(path, walkFn)
-	}); err != nil {
-		fmt.Println(err)
-		return
-	}
-
-	//walkFn := func(path string, info os.FileInfo, err error) error {
-	//	fmt.Printf("%s (%d bytes)\n", path, info.Size())
-	//	return nil
-	//}
-	//if err := walkDir(fs.Filesystem, fs.MFS, ".", walkFn); err != nil {
-	//	fmt.Println(err)
-	//}
+	walkDir(fs, ".", walkFn)
 }
 
 // Usage prints verifies that each command has the correct amount of
@@ -243,7 +244,12 @@ func (fs *filesystem) Execute(comms []string) bool {
 		fs.Close()
 	case "ls":
 		fs.ListDir()
+	case "test":
+		fs.Testing()
+	case "stat":
+		fs.Stat()
 	case "rm":
+		fs.Remove(comms[1])
 		fs.RemoveFile(comms[1])
 		fs.RemoveDir(comms[1])
 	case "exit":
