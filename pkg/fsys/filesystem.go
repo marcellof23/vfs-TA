@@ -2,13 +2,12 @@ package fsys
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
-	"strings"
+
+	"github.com/spf13/afero"
 
 	"github.com/marcellof23/vfs-TA/boot"
-	"github.com/marcellof23/vfs-TA/constant"
 )
 
 type file struct {
@@ -16,7 +15,7 @@ type file struct {
 	rootPath string // The absolute path of the file.
 }
 
-type fileSystem struct {
+type fileDir struct {
 	name        string                 // The name of the current directory we're in.
 	rootPath    string                 // The absolute path to this directory.
 	files       map[string]*file       // The list of files in this directory.
@@ -26,66 +25,11 @@ type fileSystem struct {
 
 type filesystem struct {
 	*boot.Filesystem
-	*fileSystem
+	*fileDir
 }
 
 // Root node.
 var root *filesystem
-
-func New() *filesystem {
-	// uncomment for recursively grab all files and directories from this level downwards.
-	root = replicateFilesystem(".", nil)
-
-	// root = makeFilesystem(".", ".", nil)
-	fsys := root
-	return fsys
-}
-
-// testFilessytemCreation initializes the filesystem by replicating
-// the current root directory and all it's child direcctories.
-func replicateFilesystem(dirName string, fs *filesystem) *filesystem {
-	var fi os.FileInfo
-	var fileName os.FileInfo
-
-	if dirName == "." {
-		root = makeFilesystem(".", ".", nil)
-		fs = root
-	}
-	index := 0
-	files, _ := ioutil.ReadDir(dirName)
-	for index < len(files) {
-		fileName = files[index]
-		fi, _ = os.Stat(dirName + "//" + fileName.Name())
-		mode := fi.Mode()
-		if mode.IsDir() {
-			fs.directories[fileName.Name()] = makeFilesystem(fileName.Name(), strings.ReplaceAll(dirName, "//", "/")+"/"+fileName.Name(), fs)
-			replicateFilesystem(dirName+"//"+fileName.Name(), fs.directories[fileName.Name()])
-		} else {
-			fs.files[fileName.Name()] = &file{
-				name:     fileName.Name(),
-				rootPath: strings.ReplaceAll(dirName, "//", "/") + "/" + fileName.Name(),
-			}
-			fs.MFS.Create(fs.files[fileName.Name()].rootPath + "/" + fileName.Name())
-		}
-
-		index++
-	}
-	return fs
-}
-
-func makeFilesystem(dirName string, rootPath string, prev *filesystem) *filesystem {
-	fs := boot.InitFilesystem()
-	return &filesystem{
-		fs,
-		&fileSystem{
-			name:        dirName,
-			rootPath:    rootPath,
-			files:       make(map[string]*file),
-			directories: make(map[string]*filesystem),
-			prev:        prev,
-		},
-	}
-}
 
 // pwd prints pwd() the current working directory.
 func (fs *filesystem) Pwd() {
@@ -159,7 +103,7 @@ func (fs *filesystem) MkDir(dirName string) bool {
 		fmt.Println("mkdir : directory already exists")
 		return false
 	}
-	newDir := &fileSystem{
+	newDir := &fileDir{
 		name:        dirName,
 		rootPath:    filepath.Join(fs.rootPath, dirName),
 		files:       make(map[string]*file),
@@ -209,17 +153,47 @@ func (fs *filesystem) RemoveDir(path string) error {
 
 // ListDir lists a directory's contents.
 func (fs *filesystem) ListDir() {
-	if fs.files != nil {
-		for _, file := range fs.files {
-			fmt.Printf("%s\n", file.name)
+	//if fs.files != nil {
+	//	for _, file := range fs.files {
+	//		fmt.Printf("%s\n", file.name)
+	//	}
+	//}
+	//if len(fs.directories) > 0 {
+	//	for dirName := range fs.directories {
+	//		fmt.Println(constant.ColorBlue, dirName)
+	//	}
+	//	fmt.Print(constant.ColorReset)
+	//}
+
+	walkFn := func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			fmt.Println(err)
+			return nil
 		}
+		fmt.Println(path)
+		return nil
 	}
-	if len(fs.directories) > 0 {
-		for dirName := range fs.directories {
-			fmt.Println(constant.ColorBlue, dirName)
+
+	// Use afero.Walk to get a list of all files and directories in the file system.
+	// Then, use filepath.Walk to perform the actual traversal and call walkFn for each file.
+	if err := afero.Walk(fs.MFS, ".", func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			fmt.Println(err)
+			return nil
 		}
-		fmt.Print(constant.ColorReset)
+		return filepath.Walk(path, walkFn)
+	}); err != nil {
+		fmt.Println(err)
+		return
 	}
+
+	//walkFn := func(path string, info os.FileInfo, err error) error {
+	//	fmt.Printf("%s (%d bytes)\n", path, info.Size())
+	//	return nil
+	//}
+	//if err := walkDir(fs.Filesystem, fs.MFS, ".", walkFn); err != nil {
+	//	fmt.Println(err)
+	//}
 }
 
 // Usage prints verifies that each command has the correct amount of
