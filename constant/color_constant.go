@@ -1,6 +1,6 @@
 package constant
 
 var (
-	ColorBlue  = "\033[34m"
+	ColorBlue  = 34
 	ColorReset = "\033[0m"
 )

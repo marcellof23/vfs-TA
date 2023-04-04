@@ -1,7 +1,9 @@
 package fsys
 
 import (
+	"errors"
 	"fmt"
+	"os"
 	"path/filepath"
 
 	"github.com/marcellof23/vfs-TA/boot"
@@ -29,12 +31,12 @@ type filesystem struct {
 // Root node.
 var root *filesystem
 
-// pwd prints pwd() the current working directory.
+// Pwd prints pwd() the current working directory.
 func (fs *filesystem) Pwd() {
 	fmt.Println(fs.rootPath)
 }
 
-// TearDown gracefully ends the current session.
+// Stat gracefully ends the current session.
 func (fs *filesystem) Stat() error {
 	info, err := fs.MFS.Stat(fs.rootPath)
 	if err != nil {
@@ -48,6 +50,36 @@ func (fs *filesystem) Stat() error {
 	}
 
 	return nil
+}
+
+// UploadFile uploads a file to the virtual filesystem.
+func (fs *filesystem) UploadFile(filename string) bool {
+	fs.MFS.Create(fs.rootPath + "/" + filename)
+	if _, exists := fs.files[filename]; exists {
+		fmt.Printf("touch : file already exists")
+		return false
+	}
+	newFile := &file{
+		name:     filename,
+		rootPath: fs.rootPath + "/" + filename,
+	}
+	fs.files[filename] = newFile
+	return true
+}
+
+// UploadDir uploads a file to the virtual filesystem.
+func (fs *filesystem) UploadDir(dirname string) bool {
+	fs.MFS.Create(fs.rootPath + "/" + dirname)
+	if _, exists := fs.files[dirname]; exists {
+		fmt.Printf("touch : file already exists")
+		return false
+	}
+	newFile := &file{
+		name:     dirname,
+		rootPath: fs.rootPath + "/" + dirname,
+	}
+	fs.files[dirname] = newFile
+	return true
 }
 
 func (fs *filesystem) Touch(filename string) bool {
@@ -109,26 +141,34 @@ func (fs *filesystem) RemoveFile(filename string) error {
 // RemoveDir removes a directory from the virtual filesystem.
 func (fs *filesystem) RemoveDir(path string) error {
 	var prefixPath string
-	if fs.rootPath == "." || path[0] != '/' {
+
+	if path[0] != '/' {
 		prefixPath = fs.rootPath + "/"
+	} else {
+		prefixPath = "."
 	}
 
 	absPath := prefixPath + path
+	absPath = filepath.Clean(absPath)
+	fmt.Println(fs.doesDirExist(absPath))
+	info, _ := fs.MFS.Stat(absPath)
+	fmt.Println("%v", info.IsDir())
 	err := fs.MFS.RemoveAll(absPath)
 	if err != nil {
 		return err
 	}
+	fmt.Println(fs.doesDirExist(absPath))
 
-	walkFn := func(path string, fs *filesystem, err error) error {
-		delete(fs.directories, path)
-		return nil
-	}
-
-	err = walkDir(fs.directories[path], path, walkFn)
-	if err != nil {
-		fmt.Print(err)
-	}
-	delete(fs.directories, path)
+	//walkFn := func(path string, fs *filesystem, err error) error {
+	//	delete(fs.directories, path)
+	//	return nil
+	//}
+	//
+	//err = walkDir(fs.directories[path], path, walkFn)
+	//if err != nil {
+	//	fmt.Print(err)
+	//}
+	//delete(fs.directories, path)
 
 	return nil
 }
@@ -142,20 +182,25 @@ func (fs *filesystem) ListDir() {
 	}
 	if len(fs.directories) > 0 {
 		for dirName := range fs.directories {
-			fmt.Println(constant.ColorBlue, dirName)
+			coloredDir := fmt.Sprintf("\x1b[%dm%s\x1b[0m", constant.ColorBlue, dirName)
+			fmt.Println(coloredDir)
 		}
 		fmt.Print(constant.ColorReset)
 	}
 }
 
-func (fs *filesystem) Testing(path string) {
-
-	if fs.doesFileExists(path) {
-		fmt.Println("XXXXXX")
-	} else {
-		fmt.Println("YYYYYY")
+func (fs *filesystem) Chmod(name string, mode os.FileMode) error {
+	fs, err := fs.verifyPath(name, true)
+	if err != nil {
+		return errors.New("chmod: " + err.Error())
 	}
 
+	return nil
+}
+
+func (fs *filesystem) Testing(path string) {
+	_, _ = fs.verifyPath(path, true)
+	fs.MFS.List()
 	//walkFn := func(path string, fs *filesystem, err error) error {
 	//	fmt.Printf("%s \n", path)
 	//	return nil
