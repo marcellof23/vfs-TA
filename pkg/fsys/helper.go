@@ -12,6 +12,8 @@ import (
 
 type WalkDirFunc func(path string, fs *filesystem, err error) error
 
+// Initiation Filesystem
+
 func New() *filesystem {
 	// uncomment for recursively grab all files and directories from this level downwards.
 	root = replicateFilesystem(".", nil)
@@ -78,8 +80,96 @@ func makeFilesystem(dirName string, rootPath string, prev *filesystem) *filesyst
 	}
 }
 
-func walkDir(fsys *filesystem, path string, walkDirFn WalkDirFunc) error {
+// helper function to check file or dir exists
 
+func (fs *filesystem) doesDirExists(pathName string) bool {
+	if pathName[0] == '/' {
+		info, err := fs.MFS.Stat("." + pathName)
+		if err == nil && info.IsDir() {
+			return true
+		}
+	} else {
+		info, err := fs.MFS.Stat(filepath.Join(fs.rootPath, pathName))
+		if err == nil && info.IsDir() {
+			return true
+		}
+	}
+	return false
+}
+
+func (fs *filesystem) doesFileExists(pathName string) bool {
+	if pathName[0] == '/' {
+		info, err := fs.MFS.Stat("." + pathName)
+		if err == nil && !info.IsDir() {
+			return true
+		}
+	} else {
+		info, err := fs.MFS.Stat(filepath.Join(fs.rootPath, pathName))
+		if err == nil && !info.IsDir() {
+			return true
+		}
+	}
+	return false
+}
+
+func (s *shell) doesDirExist(dirName string, fs *filesystem) bool {
+	if _, found := fs.directories[dirName]; found {
+		return true
+	}
+	return false
+}
+
+func (s *shell) verifyPath(dirName string) (*filesystem, error) {
+	checker := s.handleRootNav(dirName)
+	segments := strings.Split(dirName, "/")
+
+	for _, segment := range segments {
+		if len(segment) == 0 {
+			continue
+		}
+		if segment == ".." {
+			if checker.prev == nil {
+				continue
+			}
+			checker = checker.prev
+		} else if s.doesDirExist(segment, checker) == true {
+			checker = checker.directories[segment]
+		} else {
+			fmt.Printf("Error : %s doesn't exist\n", dirName)
+			return s.Fs, fmt.Errorf("Error : %s doesn't exist\n", dirName)
+		}
+	}
+	return checker, nil
+}
+
+func (s *shell) handleRootNav(dirName string) *filesystem {
+	if dirName[0] == '/' {
+		return root
+	}
+	return s.Fs
+}
+
+func (s *shell) reassemble(dirPath []string) string {
+	counter := 1
+	var finishedPath string
+
+	finishedPath = dirPath[0]
+	for counter < len(dirPath)-1 {
+		finishedPath = finishedPath + "/" + dirPath[counter]
+		counter++
+	}
+	return finishedPath
+}
+
+func (s *shell) readFile(filename string) {
+	dat, err := ioutil.ReadFile(filename)
+	if err != nil {
+		return
+	}
+	fmt.Println(string(dat))
+}
+
+func walkDir(fsys *filesystem, path string, walkDirFn WalkDirFunc) error {
 	err := walkDirFn(path, fsys, nil)
 	if err != nil {
 		return err
@@ -87,13 +177,13 @@ func walkDir(fsys *filesystem, path string, walkDirFn WalkDirFunc) error {
 
 	if fsys.files != nil {
 		for _, fl := range fsys.files {
-			var pathName string
-			if path != "." {
-				pathName = filepath.Join(path, fl.name)
-			} else {
-				pathName = fl.name
-			}
-			walkDirFn(pathName, fsys, nil)
+			//var pathName string
+			//if path != "." {
+			//	pathName = filepath.Join(path, fl.name)
+			//} else {
+			//	pathName = fl.name
+			//}
+			walkDirFn(fl.name, fsys, nil)
 		}
 	}
 
@@ -103,6 +193,7 @@ func walkDir(fsys *filesystem, path string, walkDirFn WalkDirFunc) error {
 			if err := walkDir(fsys.directories[dirName], name1, walkDirFn); err != nil {
 				return err
 			}
+			walkDirFn(dirName, fsys, nil)
 		}
 	}
 

@@ -2,7 +2,6 @@ package fsys
 
 import (
 	"fmt"
-	"os"
 	"path/filepath"
 
 	"github.com/marcellof23/vfs-TA/boot"
@@ -35,17 +34,6 @@ func (fs *filesystem) Pwd() {
 	fmt.Println(fs.rootPath)
 }
 
-// ReloadFilesys Resets the VFS and scraps all changes made up to this point.
-// (basically like a rerun of InitFilesystem())
-func (fs *filesystem) ReloadFilesys() {
-	fmt.Println("Refreshing...")
-}
-
-// TearDown gracefully ends the current session.
-func (fs *filesystem) TearDown() {
-	fmt.Println("Teardown")
-}
-
 // TearDown gracefully ends the current session.
 func (fs *filesystem) Stat() error {
 	info, err := fs.MFS.Stat(fs.rootPath)
@@ -62,19 +50,6 @@ func (fs *filesystem) Stat() error {
 	return nil
 }
 
-func (fs *filesystem) Cat(file string) {
-	if _, exists := fs.files[file]; exists {
-		fileObj, _ := fs.MFS.Open(fs.rootPath + "/" + file)
-		var fileObjContent []byte
-		cnt, err := fileObj.Read(fileObjContent)
-		if cnt != 0 && err != nil {
-			fmt.Println(string(fileObjContent))
-		}
-	} else {
-		fmt.Println("cat : file doesn't exist")
-	}
-}
-
 func (fs *filesystem) Touch(filename string) bool {
 	fs.MFS.Create(fs.rootPath + "/" + filename)
 	if _, exists := fs.files[filename]; exists {
@@ -87,23 +62,6 @@ func (fs *filesystem) Touch(filename string) bool {
 	}
 	fs.files[filename] = newFile
 	return true
-}
-
-// SaveState aves the state of the VFS at this time.
-func (fs *filesystem) SaveState() {
-	fmt.Println("Save the current state of the VFS")
-}
-
-// Open will allow for opening files in virtual space.
-func (fs *filesystem) Open() error {
-	fmt.Println("Open() called")
-	return nil
-}
-
-// Close closes Open virtual files.
-func (fs *filesystem) Close() error {
-	fmt.Println("Close() called")
-	return nil
 }
 
 // MkDir makes a virtual directory.
@@ -151,24 +109,27 @@ func (fs *filesystem) RemoveFile(filename string) error {
 // RemoveDir removes a directory from the virtual filesystem.
 func (fs *filesystem) RemoveDir(path string) error {
 	var prefixPath string
-	if fs.rootPath == "." {
-		prefixPath += "/"
+	if fs.rootPath == "." || path[0] != '/' {
+		prefixPath = fs.rootPath + "/"
 	}
 
 	absPath := prefixPath + path
 	err := fs.MFS.RemoveAll(absPath)
 	if err != nil {
-		fmt.Println(err)
 		return err
+	}
+
+	walkFn := func(path string, fs *filesystem, err error) error {
+		delete(fs.directories, path)
+		return nil
+	}
+
+	err = walkDir(fs.directories[path], path, walkFn)
+	if err != nil {
+		fmt.Print(err)
 	}
 	delete(fs.directories, path)
 
-	return nil
-}
-
-// Remove removes a directory or file from the virtual filesystem.
-func (fs *filesystem) Remove(path string) error {
-	fs.MFS.Stat(path)
 	return nil
 }
 
@@ -187,77 +148,46 @@ func (fs *filesystem) ListDir() {
 	}
 }
 
-func (fs *filesystem) Testing() {
+func (fs *filesystem) Testing(path string) {
 
-	walkFn := func(path string, fs *filesystem, err error) error {
-		fmt.Printf("%s \n", path)
-		return nil
+	if fs.doesFileExists(path) {
+		fmt.Println("XXXXXX")
+	} else {
+		fmt.Println("YYYYYY")
 	}
 
-	walkDir(fs, ".", walkFn)
+	//walkFn := func(path string, fs *filesystem, err error) error {
+	//	fmt.Printf("%s \n", path)
+	//	return nil
+	//}
+	//
+	//walkDir(fs, ".", walkFn)
 }
 
-// Usage prints verifies that each command has the correct amount of
-// command arguments and throws an error if not.
-func (fs *filesystem) Usage(comms []string) bool {
-	switch comms[0] {
-	case "mkdir":
-		if len(comms) < 2 {
-			fmt.Println("Usage : mkdir [list of directories to make]")
-			return false
-		}
-	case "cat":
-		if len(comms) < 2 {
-			fmt.Println("Usage : cat [list of directories to make]")
-			return false
-		}
-	case "rm":
-		if len(comms) < 2 {
-			fmt.Println("Usage : rm [File name]")
-			return false
-		}
-	case "Open":
-		if len(comms) != 2 {
-			fmt.Println("Usage : Open [File name]")
-			return false
-		}
-	}
-
-	return true
+// SaveState aves the state of the VFS at this time.
+func (fs *filesystem) SaveState() {
+	fmt.Println("Save the current state of the VFS")
 }
 
-// Execute runs the commands passed into it.
-func (fs *filesystem) Execute(comms []string) bool {
-	if fs.Usage(comms) == false {
-		return false
-	}
-	switch comms[0] {
-	case "mkdir":
-		fs.MkDir(comms[1])
-	case "pwd":
-		fs.Pwd()
-	case "cat":
-		fs.Cat(comms[1])
-	case "Open":
-		fs.Open()
-	case "Close":
-		fs.Close()
-	case "ls":
-		fs.ListDir()
-	case "test":
-		fs.Testing()
-	case "stat":
-		fs.Stat()
-	case "rm":
-		fs.Remove(comms[1])
-		fs.RemoveFile(comms[1])
-		fs.RemoveDir(comms[1])
-	case "exit":
-		fs.TearDown()
-		os.Exit(1)
-	default:
-		fmt.Println(comms[0], ": Command not found")
-		return false
-	}
-	return true
+// Open will allow for opening files in virtual space.
+func (fs *filesystem) Open() error {
+	fmt.Println("Open() called")
+	return nil
+}
+
+// Close closes Open virtual files.
+func (fs *filesystem) Close() error {
+	fmt.Println("Close() called")
+	return nil
+}
+
+// ReloadFilesys Resets the VFS and scraps all changes made up to this point.
+// (basically like a rerun of InitFilesystem())
+func (fs *filesystem) ReloadFilesys() {
+	fmt.Println("Refreshing...")
+}
+
+// TearDown gracefully ends the current session.
+func (fs *filesystem) TearDown() {
+	fmt.Println("Teardown")
 }

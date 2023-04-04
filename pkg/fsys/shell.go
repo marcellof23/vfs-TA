@@ -2,7 +2,6 @@ package fsys
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"runtime"
@@ -58,65 +57,6 @@ func (s *shell) ChDir(dirName string) {
 	s.Fs = fsVerified
 }
 
-func (s *shell) doesDirExist(dirName string, fs *filesystem) bool {
-	if _, found := fs.directories[dirName]; found {
-		return true
-	}
-	return false
-}
-
-func (s *shell) doesFileExists(pathName string) bool {
-	if pathName[0] == '/' {
-		if _, found := s.Fs.files[pathName]; found {
-			return true
-		}
-	}
-
-	return false
-}
-
-func (s *shell) verifyPath(dirName string) (*filesystem, error) {
-	checker := s.handleRootNav(dirName)
-	segments := strings.Split(dirName, "/")
-
-	for _, segment := range segments {
-		if len(segment) == 0 {
-			continue
-		}
-		if segment == ".." {
-			if checker.prev == nil {
-				continue
-			}
-			checker = checker.prev
-		} else if s.doesDirExist(segment, checker) == true {
-			checker = checker.directories[segment]
-		} else {
-			fmt.Printf("Error : %s doesn't exist\n", dirName)
-			return s.Fs, fmt.Errorf("Error : %s doesn't exist\n", dirName)
-		}
-	}
-	return checker, nil
-}
-
-func (s *shell) handleRootNav(dirName string) *filesystem {
-	if dirName[0] == '/' {
-		return root
-	}
-	return s.Fs
-}
-
-func (s *shell) reassemble(dirPath []string) string {
-	return ""
-}
-
-func (s *shell) readFile(filename string) {
-	dat, err := ioutil.ReadFile(filename)
-	if err != nil {
-		return
-	}
-	fmt.Println(string(dat))
-}
-
 func (s *shell) cat(filename string) {
 	segments := strings.Split(filename, "/")
 	if len(segments) == 1 {
@@ -145,7 +85,7 @@ func (s *shell) usage(comms []string) bool {
 			fmt.Println("Usage : cd [target directory")
 			return true
 		}
-	case "Cat":
+	case "cat":
 		if len(comms) != 2 {
 			fmt.Println("Usage : Cat [target file]")
 			return true
@@ -155,7 +95,6 @@ func (s *shell) usage(comms []string) bool {
 }
 
 func (s *shell) Execute(comms []string) bool {
-
 	if s.usage(comms) == false {
 		return false
 	}
