@@ -5,6 +5,10 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
+	"strings"
+
+	"github.com/spf13/afero"
 
 	"github.com/marcellof23/vfs-TA/boot"
 	"github.com/marcellof23/vfs-TA/constant"
@@ -37,16 +41,23 @@ func (fs *filesystem) Pwd() {
 }
 
 // Stat gracefully ends the current session.
-func (fs *filesystem) Stat() error {
-	info, err := fs.MFS.Stat(fs.rootPath)
+func (fs *filesystem) Stat(filename string) error {
+	info, err := fs.MFS.Stat(filepath.Join(fs.rootPath, filename))
 	if err != nil {
 		fmt.Println(err)
 		return err
 	} else {
+		var tipe string
+		if info.IsDir() {
+			tipe = "Directory"
+		} else {
+			tipe = "File"
+		}
 		fmt.Println("File: ", info.Name())
 		fmt.Println("Size: ", info.Size())
 		fmt.Println("Access: ", info.Mode())
 		fmt.Println("Modify: ", info.ModTime())
+		fmt.Println("Type: ", tipe)
 	}
 
 	return nil
@@ -98,25 +109,48 @@ func (fs *filesystem) Touch(filename string) bool {
 
 // MkDir makes a virtual directory.
 func (fs *filesystem) MkDir(dirName string) bool {
-	err := fs.MFS.MkdirAll(dirName, 0o700)
-	if err != nil {
-		fmt.Println(err)
-		return false
+	dirName = fs.absPath(dirName)
+	currFs := root
+	segments := strings.Split(dirName, "/")
+	for idx, segment := range segments {
+		dirExist := fs.doesDirExistRelativePath(segment, currFs)
+		if segment == "." {
+			continue
+		}
+		if len(segment) == 0 {
+			continue
+		}
+		if segment == ".." {
+			if currFs.prev == nil {
+				continue
+			}
+			currFs = currFs.prev
+		} else if dirExist {
+			currFs = currFs.directories[segment]
+			if idx == len(segments)-1 {
+				fmt.Println("mkdir : directory already exists")
+				return false
+			}
+		} else if !dirExist {
+			err := fs.MFS.MkdirAll(filepath.Join(currFs.rootPath, segment), 0o700)
+			if err != nil {
+				fmt.Println(err)
+				return false
+			}
+
+			newDir := &fileDir{
+				name:        segment,
+				rootPath:    filepath.Join(currFs.rootPath, segment),
+				files:       make(map[string]*file),
+				directories: make(map[string]*filesystem),
+				prev:        currFs,
+			}
+
+			currFs.directories[segment] = &filesystem{currFs.Filesystem, newDir}
+			currFs = currFs.directories[segment]
+		}
 	}
 
-	if _, exists := fs.directories[dirName]; exists {
-		fmt.Println("mkdir : directory already exists")
-		return false
-	}
-	newDir := &fileDir{
-		name:        dirName,
-		rootPath:    filepath.Join(fs.rootPath, dirName),
-		files:       make(map[string]*file),
-		directories: make(map[string]*filesystem),
-		prev:        fs,
-	}
-
-	fs.directories[dirName] = &filesystem{fs.Filesystem, newDir}
 	return true
 }
 
@@ -150,25 +184,46 @@ func (fs *filesystem) RemoveDir(path string) error {
 
 	absPath := prefixPath + path
 	absPath = filepath.Clean(absPath)
-	fmt.Println(fs.doesDirExist(absPath))
-	info, _ := fs.MFS.Stat(absPath)
-	fmt.Println("%v", info.IsDir())
 	err := fs.MFS.RemoveAll(absPath)
 	if err != nil {
 		return err
 	}
-	fmt.Println(fs.doesDirExist(absPath))
 
-	//walkFn := func(path string, fs *filesystem, err error) error {
-	//	delete(fs.directories, path)
-	//	return nil
-	//}
-	//
-	//err = walkDir(fs.directories[path], path, walkFn)
-	//if err != nil {
-	//	fmt.Print(err)
-	//}
-	//delete(fs.directories, path)
+	walkFn := func(path string, fs *filesystem, err error) error {
+		delete(fs.directories, path)
+		return nil
+	}
+
+	err = walkDir(fs.directories[path], path, walkFn)
+	if err != nil {
+		fmt.Print(err)
+	}
+	delete(fs.directories, path)
+
+	return nil
+}
+
+// RemoveDir removes a directory from the virtual filesystem.
+func (fs *filesystem) CopyDir(pathSource, pathDest string) error {
+	var prefixPathSource, prefixPathDest string
+
+	if pathSource[0] != '/' {
+		prefixPathSource = fs.rootPath + "/"
+	} else {
+		prefixPathSource = "."
+	}
+
+	if pathDest[0] != '/' {
+		prefixPathDest = fs.rootPath + "/"
+	} else {
+		prefixPathDest = "."
+	}
+
+	absPathSource := prefixPathSource + pathSource
+	absPathSource = filepath.Clean(absPathSource)
+
+	absPathDest := prefixPathDest + pathDest
+	absPathDest = filepath.Clean(absPathDest)
 
 	return nil
 }
@@ -189,8 +244,18 @@ func (fs *filesystem) ListDir() {
 	}
 }
 
-func (fs *filesystem) Chmod(name string, mode os.FileMode) error {
-	fs, err := fs.verifyPath(name, true)
+func (fs *filesystem) Chmod(perm, name string) error {
+	fs, err := fs.verifyPath(name)
+	if err != nil {
+		return errors.New("chmod: " + err.Error())
+	}
+
+	mode, err := strconv.ParseUint(perm, 8, 32)
+	if err != nil {
+		return errors.New("chmod: " + err.Error())
+	}
+
+	err = fs.MFS.Chmod(name, os.FileMode(mode))
 	if err != nil {
 		return errors.New("chmod: " + err.Error())
 	}
@@ -199,7 +264,19 @@ func (fs *filesystem) Chmod(name string, mode os.FileMode) error {
 }
 
 func (fs *filesystem) Testing(path string) {
-	_, _ = fs.verifyPath(path, true)
+
+	data, _ := afero.ReadFile(fs.MFS, path)
+	fmt.Println(string(data))
+	var prefixPath string
+
+	if path[0] != '/' {
+		prefixPath = fs.rootPath + "/"
+	} else {
+		prefixPath = "."
+	}
+
+	absPath := prefixPath + path
+	absPath = filepath.Clean(absPath)
 	fs.MFS.List()
 	//walkFn := func(path string, fs *filesystem, err error) error {
 	//	fmt.Printf("%s \n", path)

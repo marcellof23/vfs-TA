@@ -26,6 +26,11 @@ func (fs *filesystem) Usage(comms []string) bool {
 			fmt.Println(constant.UsageCommandRM)
 			return false
 		}
+	case "cp":
+		if len(comms) < 4 {
+			fmt.Println(constant.UsageCommandRM)
+			return false
+		}
 	case "Open":
 		if len(comms) != 2 {
 			fmt.Println("Usage : Open [File name]")
@@ -55,13 +60,21 @@ func (fs *filesystem) Execute(comms []string) bool {
 	case "test":
 		fs.Testing(comms[1])
 	case "stat":
-		fs.Stat()
+		fs.Stat(comms[1])
 	case "rm":
 		if comms[1] == "-r" {
 			fs.RemoveDir(comms[2])
 		} else {
 			fs.RemoveFile(comms[1])
 		}
+	case "cp":
+		if comms[1] == "-r" {
+			fs.CopyDir(comms[2], comms[3])
+		} else {
+			fs.CopyDir(comms[1], comms[2])
+		}
+	case "chmod":
+		fs.Chmod(comms[1], comms[2])
 	case "exit":
 		fs.TearDown()
 		os.Exit(1)
