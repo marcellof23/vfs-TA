@@ -2,8 +2,9 @@ package fsys
 
 import (
 	"fmt"
-	"io/ioutil"
 	"strings"
+
+	"github.com/spf13/afero"
 )
 
 func (s *shell) doesDirExist(dirName string, fs *filesystem) bool {
@@ -56,9 +57,7 @@ func (s *shell) reassemble(dirPath []string) string {
 }
 
 func (s *shell) readFile(filename string) {
-	dat, err := ioutil.ReadFile(filename)
-	if err != nil {
-		return
-	}
-	fmt.Println(string(dat))
+	data, _ := afero.ReadFile(s.Fs.MFS, filename)
+	fmt.Println(filename)
+	fmt.Println(string(data))
 }

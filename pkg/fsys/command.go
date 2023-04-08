@@ -51,16 +51,14 @@ func (fs *filesystem) Execute(comms []string) bool {
 		fs.MkDir(comms[1])
 	case "pwd":
 		fs.Pwd()
-	case "Open":
-		fs.Open()
-	case "Close":
-		fs.Close()
 	case "ls":
 		fs.ListDir()
 	case "test":
 		fs.Testing(comms[1])
 	case "stat":
-		fs.Stat(comms[1])
+		stat, _ := fs.Stat(comms[1])
+		fs.PrintStat(stat, comms[1])
+
 	case "rm":
 		if comms[1] == "-r" {
 			fs.RemoveDir(comms[2])

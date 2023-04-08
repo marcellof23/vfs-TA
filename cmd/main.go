@@ -13,9 +13,8 @@ import (
 func shellLoop(currentUser *user.User) {
 	var shellFlag bool
 
-	prompt := currentUser.InitPrompt()
-
 	Fsys := fsys.New()
+	prompt := currentUser.InitPrompt()
 	shells := fsys.InitShell(Fsys)
 
 	for {

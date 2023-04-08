@@ -41,12 +41,17 @@ func (fs *filesystem) Pwd() {
 }
 
 // Stat gracefully ends the current session.
-func (fs *filesystem) Stat(filename string) error {
+func (fs *filesystem) Stat(filename string) (os.FileInfo, error) {
 	info, err := fs.MFS.Stat(filepath.Join(fs.rootPath, filename))
 	if err != nil {
-		fmt.Println(err)
-		return err
-	} else {
+		return nil, err
+	}
+
+	return info, nil
+}
+
+func (fs *filesystem) PrintStat(info os.FileInfo, filename string) {
+	if info != nil {
 		var tipe string
 		if info.IsDir() {
 			tipe = "Directory"
@@ -58,9 +63,10 @@ func (fs *filesystem) Stat(filename string) error {
 		fmt.Println("Access: ", info.Mode())
 		fmt.Println("Modify: ", info.ModTime())
 		fmt.Println("Type: ", tipe)
+	} else {
+		fmt.Printf("cannot stat file: %s No such file or directory", filename)
 	}
 
-	return nil
 }
 
 // UploadFile uploads a file to the virtual filesystem.
@@ -96,7 +102,7 @@ func (fs *filesystem) UploadDir(dirname string) bool {
 func (fs *filesystem) Touch(filename string) bool {
 	fs.MFS.Create(fs.rootPath + "/" + filename)
 	if _, exists := fs.files[filename]; exists {
-		fmt.Printf("touch : file already exists")
+		fmt.Printf("touch : file %s  already exists", fs.rootPath+"/"+filename)
 		return false
 	}
 	newFile := &file{
@@ -128,7 +134,7 @@ func (fs *filesystem) MkDir(dirName string) bool {
 		} else if dirExist {
 			currFs = currFs.directories[segment]
 			if idx == len(segments)-1 {
-				fmt.Println("mkdir : directory already exists")
+				fmt.Printf("mkdir : directory %s already exists", segment)
 				return false
 			}
 		} else if !dirExist {
@@ -219,11 +225,49 @@ func (fs *filesystem) CopyDir(pathSource, pathDest string) error {
 		prefixPathDest = "."
 	}
 
+	fsSource, _ := fs.searchFS(pathSource)
+	fsDest, _ := fs.searchFS(pathDest)
+
 	absPathSource := prefixPathSource + pathSource
 	absPathSource = filepath.Clean(absPathSource)
 
+	_, err := fs.Stat(pathSource)
+	if err != nil {
+		fmt.Println("cp: ", err)
+		return errors.New("file or Directory does not exist")
+	}
+
 	absPathDest := prefixPathDest + pathDest
 	absPathDest = filepath.Clean(absPathDest)
+
+	err = fs.MFS.MkdirAll(absPathDest, 0o700)
+	if err != nil {
+		return err
+	}
+
+	newDir := &fileDir{
+		name:        pathDest,
+		rootPath:    filepath.Join(fsDest.rootPath, pathDest),
+		files:       make(map[string]*file),
+		directories: make(map[string]*filesystem),
+		prev:        fsDest,
+	}
+
+	fs.directories[pathDest] = &filesystem{fs.Filesystem, newDir}
+
+	walkFn := func(path string, fs *filesystem, err error) error {
+		if isDir, _ := fs.isDir(path); isDir {
+			fs.MkDir(filepath.Join(fsDest.rootPath, pathDest, path))
+		} else {
+			fs.Touch(filepath.Join(fsDest.rootPath, pathDest, path))
+		}
+		return nil
+	}
+
+	err = walkDir(fsSource, pathSource, walkFn)
+	if err != nil {
+		fmt.Print(err)
+	}
 
 	return nil
 }
@@ -263,21 +307,16 @@ func (fs *filesystem) Chmod(perm, name string) error {
 	return nil
 }
 
-func (fs *filesystem) Testing(path string) {
-
+func (fs *filesystem) Cat(path string) {
 	data, _ := afero.ReadFile(fs.MFS, path)
 	fmt.Println(string(data))
-	var prefixPath string
+}
 
-	if path[0] != '/' {
-		prefixPath = fs.rootPath + "/"
-	} else {
-		prefixPath = "."
-	}
+func (fs *filesystem) Testing(path string) {
 
-	absPath := prefixPath + path
-	absPath = filepath.Clean(absPath)
-	fs.MFS.List()
+	fs, err := fs.searchFS(path)
+	fmt.Println(fs.rootPath, err)
+	//fs.ListDir()
 	//walkFn := func(path string, fs *filesystem, err error) error {
 	//	fmt.Printf("%s \n", path)
 	//	return nil
@@ -289,18 +328,6 @@ func (fs *filesystem) Testing(path string) {
 // SaveState aves the state of the VFS at this time.
 func (fs *filesystem) SaveState() {
 	fmt.Println("Save the current state of the VFS")
-}
-
-// Open will allow for opening files in virtual space.
-func (fs *filesystem) Open() error {
-	fmt.Println("Open() called")
-	return nil
-}
-
-// Close closes Open virtual files.
-func (fs *filesystem) Close() error {
-	fmt.Println("Close() called")
-	return nil
 }
 
 // ReloadFilesys Resets the VFS and scraps all changes made up to this point.

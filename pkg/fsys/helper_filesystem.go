@@ -127,7 +127,7 @@ func (fs *filesystem) searchFS(dirName string) (*filesystem, error) {
 	checker := root
 	segments := strings.Split(dirName, "/")
 
-	for _, segment := range segments {
+	for idx, segment := range segments {
 		if segment == "." {
 			continue
 		}
@@ -143,18 +143,36 @@ func (fs *filesystem) searchFS(dirName string) (*filesystem, error) {
 			checker = checker.directories[segment]
 		} else if fs.doesFileExistRelativePath(segment, checker) {
 			return checker, nil
+		} else if idx != len(segments)-1 {
+			return fs, fmt.Errorf("Error : %s doesn't exist\n", dirName)
 		}
 	}
 	return checker, nil
 }
 
-func (fs *filesystem) isDir(pathname string) bool {
-	//if fs.rootPath == "." || path[0] != '/' {
-	//	prefixPath = fs.rootPath + "/"
-	//}
-	return true
-}
+func (fs *filesystem) isDir(pathname string) (bool, error) {
+	var prefixPath string
 
+	if pathname[0] != '/' {
+		prefixPath = fs.rootPath + "/"
+	} else {
+		prefixPath = "."
+	}
+
+	absPath := prefixPath + pathname
+	absPath = filepath.Clean(absPath)
+	info, err := fs.MFS.Stat(absPath)
+	if err != nil {
+		return false, err
+	}
+
+	if info.IsDir() {
+		return true, nil
+	} else {
+		return false, nil
+	}
+
+}
 func (fs *filesystem) absPath(pathname string) string {
 	var prefixPath string
 
@@ -228,12 +246,6 @@ func walkDir(fsys *filesystem, path string, walkDirFn WalkDirFunc) error {
 
 	if fsys.files != nil {
 		for _, fl := range fsys.files {
-			//var pathName string
-			//if path != "." {
-			//	pathName = filepath.Join(path, fl.name)
-			//} else {
-			//	pathName = fl.name
-			//}
 			walkDirFn(fl.name, fsys, nil)
 		}
 	}
