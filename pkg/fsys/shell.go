@@ -10,17 +10,17 @@ import (
 
 // our shell object.
 type shell struct {
-	Fs *filesystem
+	Fs *Filesystem
 }
 
 // InitShell initializes our shell object.
-func InitShell(fs *filesystem) *shell {
+func InitShell(fs *Filesystem) *shell {
 	return &shell{
 		Fs: fs,
 	}
 }
 
-func (s *shell) SetFilesystem(fs *filesystem) {
+func (s *shell) SetFilesystem(fs *Filesystem) {
 	s.Fs = fs
 }
 

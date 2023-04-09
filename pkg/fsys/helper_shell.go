@@ -7,14 +7,14 @@ import (
 	"github.com/spf13/afero"
 )
 
-func (s *shell) doesDirExist(dirName string, fs *filesystem) bool {
+func (s *shell) doesDirExist(dirName string, fs *Filesystem) bool {
 	if _, found := fs.directories[dirName]; found {
 		return true
 	}
 	return false
 }
 
-func (s *shell) verifyPath(dirName string) (*filesystem, error) {
+func (s *shell) verifyPath(dirName string) (*Filesystem, error) {
 	checker := s.handleRootNav(dirName)
 	segments := strings.Split(dirName, "/")
 
@@ -37,7 +37,7 @@ func (s *shell) verifyPath(dirName string) (*filesystem, error) {
 	return checker, nil
 }
 
-func (s *shell) handleRootNav(dirName string) *filesystem {
+func (s *shell) handleRootNav(dirName string) *Filesystem {
 	if dirName[0] == '/' {
 		return root
 	}

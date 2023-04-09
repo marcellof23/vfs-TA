@@ -9,7 +9,7 @@ import (
 
 // Usage prints verifies that each command has the correct amount of
 // command arguments and throws an error if not.
-func (fs *filesystem) Usage(comms []string) bool {
+func (fs *Filesystem) Usage(comms []string) bool {
 	switch comms[0] {
 	case "mkdir":
 		if len(comms) < 2 {
@@ -42,7 +42,7 @@ func (fs *filesystem) Usage(comms []string) bool {
 }
 
 // Execute runs the commands passed into it.
-func (fs *filesystem) Execute(comms []string) bool {
+func (fs *Filesystem) Execute(comms []string) bool {
 	if fs.Usage(comms) == false {
 		return false
 	}
@@ -58,7 +58,8 @@ func (fs *filesystem) Execute(comms []string) bool {
 	case "stat":
 		stat, _ := fs.Stat(comms[1])
 		fs.PrintStat(stat, comms[1])
-
+	case "touch":
+		fs.Touch(comms[1])
 	case "rm":
 		if comms[1] == "-r" {
 			fs.RemoveDir(comms[2])

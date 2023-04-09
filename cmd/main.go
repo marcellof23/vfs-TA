@@ -26,12 +26,15 @@ func shellLoop(currentUser *user.User) {
 
 		comms := strings.Split(input, " ")
 		shellFlag = shells.Execute(comms)
+		currentUser.SetPrompt(prompt, shells.Fs)
 		if shellFlag {
 			continue
 		}
 		Fsys = shells.Fs
 
 		shellFlag = Fsys.Execute(comms)
+		currentUser.SetPrompt(prompt, Fsys)
+
 		shells.SetFilesystem(Fsys)
 
 		if shellFlag {
@@ -43,7 +46,7 @@ func shellLoop(currentUser *user.User) {
 func init() {
 	var apiCmd = &cobra.Command{
 		Use:   "shell",
-		Short: "Runs the main Shell Loop for the Filesystem",
+		Short: "Runs the main Shell Loop for the MemFilesystem",
 		Run: func(cmd *cobra.Command, args []string) {
 			configfile := files
 			if len(args) != 0 {

@@ -4,7 +4,7 @@ import (
 	"github.com/spf13/afero"
 )
 
-type Filesystem struct {
+type MemFilesystem struct {
 	MFS *afero.MemMapFs
 }
 
@@ -25,9 +25,9 @@ type FilesystemIntf interface {
 	Execute(comms []string) bool
 }
 
-func InitFilesystem() *Filesystem {
+func InitFilesystem() *MemFilesystem {
 	mfs := &afero.MemMapFs{}
-	return &Filesystem{
+	return &MemFilesystem{
 		MFS: mfs,
 	}
 }

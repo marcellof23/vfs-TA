@@ -7,7 +7,7 @@ import (
 	"github.com/chzyer/readline"
 )
 
-// setName gets a custom username from the current User.
+// setName gets a custom Username from the current User.
 func setName() string {
 
 	var username string
@@ -17,7 +17,7 @@ func setName() string {
 	}
 
 	for {
-		fmt.Println("Please enter a username (1 for Anonymous):")
+		fmt.Println("Please enter a Username (1 for Anonymous):")
 		input, err := line.Readline()
 		if err != nil {
 			log.Fatal(err)
