@@ -10,7 +10,7 @@ import (
 	"github.com/marcellof23/vfs-TA/boot"
 )
 
-type WalkDirFunc func(path string, fs *Filesystem, err error) error
+type WalkDirFunc func(path, filename string, fs *Filesystem, err error) error
 
 // Initiation Virtual MemFilesystem
 
@@ -278,14 +278,14 @@ func (fs *Filesystem) doesFileExistsAbsPath(pathName string) bool {
 }
 
 func walkDir(fsys *Filesystem, path string, walkDirFn WalkDirFunc) error {
-	err := walkDirFn(path, fsys, nil)
+	err := walkDirFn(fsys.rootPath, path, fsys, nil)
 	if err != nil {
 		return err
 	}
 
 	if fsys.files != nil {
 		for _, fl := range fsys.files {
-			walkDirFn(fl.name, fsys, nil)
+			walkDirFn(fsys.rootPath, fl.name, fsys, nil)
 		}
 	}
 
@@ -295,7 +295,7 @@ func walkDir(fsys *Filesystem, path string, walkDirFn WalkDirFunc) error {
 			if err := walkDir(fsys.directories[dirName], name1, walkDirFn); err != nil {
 				return err
 			}
-			walkDirFn(dirName, fsys, nil)
+			walkDirFn(fsys.rootPath, dirName, fsys, nil)
 		}
 	}
 

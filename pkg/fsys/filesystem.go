@@ -235,7 +235,7 @@ func (fs *Filesystem) RemoveDir(path string) error {
 		return err
 	}
 
-	walkFn := func(path string, fs *Filesystem, err error) error {
+	walkFn := func(rootpath, path string, fs *Filesystem, err error) error {
 		delete(fs.directories, path)
 		return nil
 	}
@@ -295,14 +295,11 @@ func (fs *Filesystem) CopyDir(pathSource, pathDest string) error {
 
 	fs.directories[pathDest] = &Filesystem{fs.MemFilesystem, newDir}
 
-	fmt.Println(fsSource.rootPath, " ", fsDest.rootPath)
-	walkFn := func(path string, fss *Filesystem, err error) error {
+	walkFn := func(rootPath, path string, _ *Filesystem, err error) error {
 		if isDir, _ := fs.isDir(path); isDir {
-			fmt.Println("dir ", filepath.Join(fsDest.rootPath, pathDest, path))
 			fs.MkDir(filepath.Join(fsDest.rootPath, pathDest, path))
 		} else {
-			fmt.Println("file ", fs.rootPath)
-			fs.Touch(filepath.Join(fsDest.rootPath, pathDest, path))
+			fs.Touch(filepath.Join(fsDest.rootPath, pathDest, rootPath, path))
 		}
 		return nil
 	}
