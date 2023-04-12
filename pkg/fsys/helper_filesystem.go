@@ -4,6 +4,7 @@ import (
 	"fmt"
 	gofs "io/fs"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 
@@ -38,7 +39,10 @@ func replicateFilesystem(dirName string, fs *Filesystem) *Filesystem {
 		fs = root
 	}
 	index := 0
+	dirName = filepath.ToSlash(dirName)
 	files, _ := os.ReadDir(dirName)
+
+	//var seperator string
 	for index < len(files) {
 		fileName = files[index]
 		fi, _ = os.Stat(dirName + "/" + fileName.Name())
@@ -48,8 +52,7 @@ func replicateFilesystem(dirName string, fs *Filesystem) *Filesystem {
 			if fileName.Name() != "vendor" && fileName.Name() != ".git" {
 				dirname := fileName.Name()
 				fs.directories[dirname] = makeFilesystem(dirname, strings.ReplaceAll(dirName, "//", "/")+"/"+fileName.Name(), fs, fs.MemFilesystem)
-				fs.MFS.Mkdir(filepath.Join(fs.rootPath, dirname), mode.Perm())
-
+				fs.MFS.Mkdir(filepath.ToSlash(filepath.Join(fs.rootPath, dirname)), mode.Perm())
 				replicateFilesystem(dirName+"/"+fileName.Name(), fs.directories[fileName.Name()])
 			}
 
@@ -60,6 +63,7 @@ func replicateFilesystem(dirName string, fs *Filesystem) *Filesystem {
 					rootPath: strings.ReplaceAll(dirName, "//", "/") + "/" + fileName.Name(),
 				}
 				fname := fs.files[fileName.Name()].rootPath
+				fmt.Println(fname)
 				memfile, _ := fs.MFS.Create(fname)
 				memfile.Truncate(fi.Size())
 				memfile.Write(dat)
@@ -254,7 +258,7 @@ func (fs *Filesystem) doesDirExistAbsPath(pathName string) bool {
 			return true
 		}
 	} else {
-		info, err := fs.MFS.Stat(filepath.Join(fs.rootPath, pathName))
+		info, err := fs.MFS.Stat(path.Join(fs.rootPath, pathName))
 		if err == nil && info.IsDir() {
 			return true
 		}
@@ -269,7 +273,7 @@ func (fs *Filesystem) doesFileExistsAbsPath(pathName string) bool {
 			return true
 		}
 	} else {
-		info, err := fs.MFS.Stat(filepath.Join(fs.rootPath, pathName))
+		info, err := fs.MFS.Stat(path.Join(fs.rootPath, pathName))
 		if err == nil && !info.IsDir() {
 			return true
 		}
@@ -322,7 +326,7 @@ func Walkdir(fsys *Filesystem, pathTarget string, walkDirFn WalkDirFunc) error {
 	if len(fsys.directories) > 0 {
 		for dirName := range fsys.directories {
 			fmt.Println("Directories: ", dirName)
-			name1 := filepath.Join(fsys.rootPath, dirName)
+			name1 := path.Join(fsys.rootPath, dirName)
 			if err := walkDir(fsys.directories[dirName], name1, walkDirFn); err != nil {
 				return err
 			}

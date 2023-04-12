@@ -202,15 +202,20 @@ func (fs *Filesystem) MkDir(dirName string) bool {
 
 // RemoveFile removes a File from the virtual Filesystem.
 func (fs *Filesystem) RemoveFile(filename string) error {
-	var prefixPath string
-	if fs.rootPath == "." {
-		prefixPath = fs.rootPath + "/"
+	filename = fs.absPath(filename)
+	info, err := fs.Stat(filename)
+	fmt.Println(filename)
+	if err != nil {
+		return errors.New("file or Directory does not exist")
 	}
 
-	absPath := prefixPath + filename
-	err := fs.MFS.Remove(absPath)
+	if info.IsDir() {
+		errs := fmt.Sprintf("rm : cannot remove '%s': Is a directory", filename)
+		return errors.New(errs)
+	}
+
+	err = fs.MFS.Remove(filename)
 	if err != nil {
-		fmt.Println(err)
 		return err
 	}
 	delete(fs.files, filename)
@@ -249,7 +254,12 @@ func (fs *Filesystem) RemoveDir(path string) error {
 	return nil
 }
 
-// RemoveDir removes a directory from the virtual Filesystem.
+// CopyDir copy a directory from the source to destination.
+func (fs *Filesystem) CopyFile(pathSource, pathDest string) error {
+	return nil
+}
+
+// CopyDir copy a directory from the source to destination.
 func (fs *Filesystem) CopyDir(pathSource, pathDest string) error {
 	var prefixPathSource, prefixPathDest string
 
@@ -325,6 +335,8 @@ func (fs *Filesystem) ListDir() {
 			fmt.Println(coloredDir)
 		}
 	}
+
+	fs.MFS.List()
 }
 
 func (fs *Filesystem) Chmod(perm, name string) error {
