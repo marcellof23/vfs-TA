@@ -43,6 +43,7 @@ func (fs *Filesystem) Usage(comms []string) bool {
 
 // Execute runs the commands passed into it.
 func (fs *Filesystem) Execute(comms []string) bool {
+	var err error
 	if fs.Usage(comms) == false {
 		return false
 	}
@@ -56,15 +57,18 @@ func (fs *Filesystem) Execute(comms []string) bool {
 	case "test":
 		fs.Testing(comms[1])
 	case "stat":
-		stat, _ := fs.Stat(comms[1])
-		fs.PrintStat(stat, comms[1])
+		stat, errs := fs.Stat(comms[1])
+		if err == nil {
+			fs.PrintStat(stat, comms[1])
+		}
+		err = errs
 	case "touch":
 		fs.Touch(comms[1])
 	case "rm":
 		if comms[1] == "-r" {
-			fs.RemoveDir(comms[2])
+			err = fs.RemoveDir(comms[2])
 		} else {
-			fs.RemoveFile(comms[1])
+			err = fs.RemoveFile(comms[1])
 		}
 	case "cp":
 		if comms[1] == "-r" {
@@ -80,6 +84,9 @@ func (fs *Filesystem) Execute(comms []string) bool {
 	default:
 		fmt.Println(comms[0], ": Command not found")
 		return false
+	}
+	if err != nil {
+		fmt.Println(err.Error())
 	}
 	return true
 }

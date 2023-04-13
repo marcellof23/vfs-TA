@@ -69,8 +69,9 @@ func (currentUser *User) InitPrompt() *readline.Instance {
 		readline.PcItem("exit"),
 	)
 
+	coloredUsername := fmt.Sprintf("\x1b[%dm%s\x1b[0m", constant.ColorHiGreen, currentUser.Username)
 	prompt, err := readline.NewEx(&readline.Config{
-		Prompt:          currentUser.Username + "$>",
+		Prompt:          coloredUsername + ":" + "$>",
 		HistoryFile:     "/tmp/commands.tmp",
 		AutoComplete:    autoCompleter,
 		InterruptPrompt: "^C",

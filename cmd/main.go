@@ -24,19 +24,22 @@ func shellLoop(currentUser *user.User) {
 			continue
 		}
 
-		comms := strings.Split(input, " ")
-		shellFlag = shells.Execute(comms)
+		commands := strings.Split(input, " ")
+
+		// Execute the command for shell
+		shellFlag = shells.Execute(commands)
 		currentUser.SetPrompt(prompt, shells.Fs)
+
+		Fsys = shells.Fs
 		if shellFlag {
 			continue
 		}
-		Fsys = shells.Fs
 
-		shellFlag = Fsys.Execute(comms)
+		// Execute the command for filesystem
+		shellFlag = Fsys.Execute(commands)
 		currentUser.SetPrompt(prompt, Fsys)
 
 		shells.SetFilesystem(Fsys)
-
 		if shellFlag {
 			continue
 		}

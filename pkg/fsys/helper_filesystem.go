@@ -49,7 +49,6 @@ func replicateFilesystem(dirName string, fs *Filesystem) *Filesystem {
 				dirname := fileName.Name()
 				fs.directories[dirname] = makeFilesystem(dirname, strings.ReplaceAll(dirName, "//", "/")+"/"+fileName.Name(), fs, fs.MemFilesystem)
 				fs.MFS.Mkdir(filepath.Join(fs.rootPath, dirname), mode.Perm())
-
 				replicateFilesystem(dirName+"/"+fileName.Name(), fs.directories[fileName.Name()])
 			}
 
@@ -72,45 +71,6 @@ func replicateFilesystem(dirName string, fs *Filesystem) *Filesystem {
 	return fs
 }
 
-//func copyFilesystem(dirName string, fs *Filesystem) *Filesystem {
-//	var fileName gofs.DirEntry
-//	var fi os.FileInfo
-//
-//	index := 0
-//	files, _ := fs
-//	for index < len(files) {
-//		fileName = files[index]
-//		fi, _ = os.Stat(dirName + "/" + fileName.Name())
-//		dat, _ := os.ReadFile(dirName + "/" + fileName.Name())
-//		mode := fi.Mode()
-//		if mode.IsDir() {
-//			if fileName.Name() != "vendor" && fileName.Name() != ".git" {
-//				dirname := fileName.Name()
-//				fs.directories[dirname] = makeFilesystem(dirname, strings.ReplaceAll(dirName, "//", "/")+"/"+fileName.Name(), fs, fs.MemFilesystem)
-//				fs.MFS.Mkdir(filepath.Join(fs.rootPath, dirname), mode.Perm())
-//
-//				replicateFilesystem(dirName+"/"+fileName.Name(), fs.directories[fileName.Name()])
-//			}
-//
-//		} else {
-//			if fileName.Name() != "vendor" && fileName.Name() != ".git" {
-//				fs.files[fileName.Name()] = &file{
-//					name:     fileName.Name(),
-//					rootPath: strings.ReplaceAll(dirName, "//", "/") + "/" + fileName.Name(),
-//				}
-//				fname := fs.files[fileName.Name()].rootPath
-//				memfile, _ := fs.MFS.Create(fname)
-//				memfile.Truncate(fi.Size())
-//				memfile.Write(dat)
-//				fs.MFS.Chmod(filepath.Clean(fname), mode.Perm())
-//			}
-//		}
-//
-//		index++
-//	}
-//	return fs
-//}
-
 func makeFilesystem(dirName string, rootPath string, prev *Filesystem, fsys *boot.MemFilesystem) *Filesystem {
 	fs := boot.InitFilesystem()
 	if fsys == nil {
@@ -128,6 +88,22 @@ func makeFilesystem(dirName string, rootPath string, prev *Filesystem, fsys *boo
 			directories: make(map[string]*Filesystem),
 			prev:        prev,
 		},
+	}
+}
+
+func (fs *Filesystem) PrintStat(info os.FileInfo, filename string) {
+	if info != nil {
+		var tipe string
+		if info.IsDir() {
+			tipe = "Directory"
+		} else {
+			tipe = "File"
+		}
+		fmt.Println("File: ", info.Name())
+		fmt.Println("Size: ", info.Size())
+		fmt.Println("Access: ", info.Mode())
+		fmt.Println("Modify: ", info.ModTime())
+		fmt.Println("Type: ", tipe)
 	}
 }
 
@@ -163,7 +139,7 @@ func (fs *Filesystem) verifyPath(dirName string) (*Filesystem, error) {
 
 // Helper function to check file or dir exists
 func (fs *Filesystem) searchFS(dirName string) (*Filesystem, error) {
-	checker := root
+	checker := fs.handleRootNav(dirName)
 	segments := strings.Split(dirName, "/")
 
 	for idx, segment := range segments {
@@ -282,7 +258,7 @@ func walkDir(fsys *Filesystem, path string, walkDirFn WalkDirFunc) error {
 	if err != nil {
 		return err
 	}
-
+	fmt.Println(path)
 	if fsys.files != nil {
 		for _, fl := range fsys.files {
 			walkDirFn(fsys.rootPath, fl.name, fsys, nil)
@@ -295,7 +271,6 @@ func walkDir(fsys *Filesystem, path string, walkDirFn WalkDirFunc) error {
 			if err := walkDir(fsys.directories[dirName], name1, walkDirFn); err != nil {
 				return err
 			}
-			walkDirFn(fsys.rootPath, dirName, fsys, nil)
 		}
 	}
 
