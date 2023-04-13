@@ -101,8 +101,8 @@ func (s *Shell) Execute(comms []string) bool {
 	switch comms[0] {
 	case "cd":
 		s.ChDir(comms[1])
-	case "cat":
-		s.cat(comms[1])
+	//case "cat":
+	//	s.cat(comms[1])
 	case "clear":
 		s.ClearScreen()
 	default:

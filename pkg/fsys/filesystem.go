@@ -242,19 +242,28 @@ func (fs *Filesystem) RemoveDir(path string) error {
 
 // CopyFile copy a file from source to destination on the virtual Filesystem.
 func (fs *Filesystem) CopyFile(pathSource, pathDest string) error {
-	//fsSource, _ := fs.searchFS(pathSource)
-	//fsDest, _ := fs.searchFS(pathDest)
-	//
-	//absPathSource := fs.absPath(pathSource)
-	//absPathDest := fs.absPath(pathDest)
-	//
-	//_, err := fs.Stat(pathSource)
-	//if err != nil {
-	//	fmt.Println("cp: ", err)
-	//	return errors.New("file or Directory does not exist")
-	//}
-	//
-	//fs.Touch(filepath.Join(fsDest.rootPath, pathDest, rootPath, path))
+	fsDest, _ := fs.searchFS(pathDest)
+
+	fl, err := fs.Stat(pathSource)
+	if err != nil {
+		fmt.Println("cp: ", err)
+		return errors.New("file or Directory does not exist")
+	}
+	fmt.Println(fl.Name(), fl.Size())
+
+	pathSourceFileName := fs.absPath(pathSource)
+	pathTargetFileName := fs.absPath(pathDest)
+
+	fsDest.Touch(pathDest)
+	sourceFile, _ := fs.MFS.Open(pathSourceFileName)
+	destFile, _ := fs.MFS.Open(pathTargetFileName)
+	fmt.Println(destFile.Name())
+	destFile.Truncate(fl.Size())
+
+	b := make([]byte, fl.Size())
+	sourceFile.Read(b)
+	destFile.Write(b)
+
 	return nil
 }
 
@@ -279,6 +288,7 @@ func (fs *Filesystem) CopyDir(pathSource, pathDest string) error {
 		} else {
 			newFile := filepath.Join(pathDest, rootPath, path)
 			fsDest.Touch(newFile)
+
 		}
 		return nil
 	}

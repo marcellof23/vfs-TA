@@ -16,6 +16,16 @@ func (fs *Filesystem) Usage(comms []string) bool {
 			fmt.Println("Usage : mkdir [list of directories to make]")
 			return false
 		}
+	case "stat":
+		if len(comms) < 2 {
+			fmt.Println("Usage : stat [list of directories to make]")
+			return false
+		}
+	case "chmod":
+		if len(comms) < 2 {
+			fmt.Println("Usage : chmod [list of directories to make]")
+			return false
+		}
 	case "cat":
 		if len(comms) < 2 {
 			fmt.Println("Usage : cat [list of directories to make]")
@@ -27,13 +37,8 @@ func (fs *Filesystem) Usage(comms []string) bool {
 			return false
 		}
 	case "cp":
-		if len(comms) < 4 {
+		if len(comms) < 3 {
 			fmt.Println(constant.UsageCommandRM)
-			return false
-		}
-	case "Open":
-		if len(comms) != 2 {
-			fmt.Println("Usage : Open [File name]")
 			return false
 		}
 	}
@@ -54,6 +59,8 @@ func (fs *Filesystem) Execute(comms []string) bool {
 		fs.Pwd()
 	case "ls":
 		fs.ListDir()
+	case "cat":
+		fs.Cat(comms[1])
 	case "test":
 		fs.Testing(comms[1])
 	case "stat":
@@ -74,7 +81,7 @@ func (fs *Filesystem) Execute(comms []string) bool {
 		if comms[1] == "-r" {
 			fs.CopyDir(comms[2], comms[3])
 		} else {
-			fs.CopyDir(comms[1], comms[2])
+			fs.CopyFile(comms[1], comms[2])
 		}
 	case "chmod":
 		fs.Chmod(comms[1], comms[2])
