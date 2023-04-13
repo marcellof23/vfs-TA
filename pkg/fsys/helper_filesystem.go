@@ -258,16 +258,16 @@ func walkDir(fsys *Filesystem, path string, walkDirFn WalkDirFunc) error {
 	if err != nil {
 		return err
 	}
-	fmt.Println(path)
+
 	if fsys.files != nil {
 		for _, fl := range fsys.files {
-			walkDirFn(fsys.rootPath, fl.name, fsys, nil)
+			walkDirFn(path, fl.name, fsys, nil)
 		}
 	}
 
 	if len(fsys.directories) > 0 {
 		for dirName := range fsys.directories {
-			name1 := filepath.Join(fsys.rootPath, dirName)
+			name1 := filepath.Join(path, dirName)
 			if err := walkDir(fsys.directories[dirName], name1, walkDirFn); err != nil {
 				return err
 			}

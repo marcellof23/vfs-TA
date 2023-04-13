@@ -63,7 +63,7 @@ func (fs *Filesystem) Execute(comms []string) bool {
 		}
 		err = errs
 	case "touch":
-		fs.Touch(comms[1])
+		err = fs.Touch(comms[1])
 	case "rm":
 		if comms[1] == "-r" {
 			err = fs.RemoveDir(comms[2])

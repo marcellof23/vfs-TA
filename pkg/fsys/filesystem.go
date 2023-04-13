@@ -94,9 +94,8 @@ func (fs *Filesystem) UploadDir(dirname string) bool {
 	return true
 }
 
-func (fs *Filesystem) Touch(filename string) bool {
+func (fs *Filesystem) Touch(filename string) error {
 	filename = fs.absPath(filename)
-	fmt.Println(filename)
 	currFs := root
 	segments := strings.Split(filename, "/")
 	for idx, segment := range segments {
@@ -116,38 +115,37 @@ func (fs *Filesystem) Touch(filename string) bool {
 		} else if dirExist {
 			currFs = currFs.directories[segment]
 			if idx == len(segments)-1 {
-				fmt.Printf("touch : directory with name %s already exists\n", segment)
-				return false
+				errs := fmt.Sprintf("touch : directory with name %s already exists", segment)
+				return errors.New(errs)
 			}
 		} else if !dirExist && idx < len(segments)-1 {
-			fmt.Printf("touch : cannot touch %s No such file or directory\n", segment)
-			return false
+			errs := fmt.Sprintf("touch : cannot touch %s No such file or directory", segment)
+			return errors.New(errs)
 		} else if fileExist {
-			fmt.Printf("touch :  file with name %s already exists\n", segment)
-			return false
+			errs := fmt.Sprintf("touch :  file with name %s already exists", segment)
+			return errors.New(errs)
 		} else if !fileExist && idx == len(segments)-1 {
 			currFs.MFS.Create(currFs.rootPath + "/" + segment)
 			if _, exists := currFs.files[segment]; exists {
-				fmt.Printf("touch : file %s  already exists\n", segment)
-				return false
+				errs := fmt.Sprintf("touch : file %s  already exists", segment)
+				return errors.New(errs)
 			}
 			newFile := &file{
 				name:     segment,
 				rootPath: currFs.rootPath + "/" + segment,
 			}
 			currFs.files[segment] = newFile
-			return true
+			return nil
 		}
 	}
 
-	return true
+	return nil
 
 }
 
 // MkDir makes a virtual directory.
 func (fs *Filesystem) MkDir(dirName string) bool {
 	dirName = fs.absPath(dirName)
-	fmt.Println("mkdir: ", dirName)
 	currFs := root
 	segments := strings.Split(dirName, "/")
 	for idx, segment := range segments {
@@ -262,13 +260,8 @@ func (fs *Filesystem) CopyFile(pathSource, pathDest string) error {
 
 // CopyDir copy a file from source to destination on the virtual Filesystem.
 func (fs *Filesystem) CopyDir(pathSource, pathDest string) error {
-	absPathSource := fs.absPath(pathSource)
-	//absPathDest := fs.absPath(pathDest)
-
 	fsSource, _ := fs.searchFS(pathSource)
 	fsDest, _ := fs.searchFS(pathDest)
-
-	fmt.Println(fsSource.rootPath, "XXX")
 
 	pathSource = filepath.Base(pathSource)
 	pathDest = filepath.Base(pathDest)
@@ -277,19 +270,20 @@ func (fs *Filesystem) CopyDir(pathSource, pathDest string) error {
 		fmt.Println("cp: ", err)
 		return errors.New("file or Directory does not exist")
 	}
-	fmt.Println(fsDest.rootPath)
 	fsDest.MkDir(pathDest)
 
 	walkFn := func(rootPath, path string, _ *Filesystem, err error) error {
 		if isDir, _ := fs.isDir(path); isDir {
-			fs.MkDir(filepath.Join(fsDest.rootPath, pathDest, path))
+			newDir := filepath.Join(pathDest, path)
+			fsDest.MkDir(newDir)
 		} else {
-			fs.Touch(filepath.Join(fsDest.rootPath, pathDest, rootPath, path))
+			newFile := filepath.Join(pathDest, rootPath, path)
+			fsDest.Touch(newFile)
 		}
 		return nil
 	}
 
-	err = walkDir(fsSource, absPathSource, walkFn)
+	err = walkDir(fsSource, pathSource, walkFn)
 	if err != nil {
 		fmt.Print(err)
 	}
@@ -301,7 +295,7 @@ func (fs *Filesystem) CopyDir(pathSource, pathDest string) error {
 func (fs *Filesystem) ListDir() {
 	if fs.files != nil {
 		for _, file := range fs.files {
-			fmt.Printf("%s\n", file.name)
+			fmt.Println(file.name)
 		}
 	}
 	if len(fs.directories) > 0 {
