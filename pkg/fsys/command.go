@@ -41,6 +41,11 @@ func (fs *Filesystem) Usage(comms []string) bool {
 			fmt.Println(constant.UsageCommandRM)
 			return false
 		}
+	case "mv":
+		if len(comms) < 3 {
+			fmt.Println(constant.UsageCommandRM)
+			return false
+		}
 	}
 
 	return true
@@ -83,11 +88,19 @@ func (fs *Filesystem) Execute(comms []string) bool {
 		} else {
 			fs.CopyFile(comms[1], comms[2])
 		}
+	case "mv":
+		fs.Move(comms[1], comms[2])
 	case "chmod":
 		fs.Chmod(comms[1], comms[2])
 	case "exit":
 		fs.TearDown()
 		os.Exit(1)
+	case "upload":
+		if comms[1] == "-r" {
+			fs.UploadDir(comms[2], comms[3])
+		} else {
+			fs.UploadFile(comms[1], comms[2])
+		}
 	default:
 		fmt.Println(comms[0], ": Command not found")
 		return false

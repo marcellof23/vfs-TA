@@ -58,6 +58,5 @@ func (s *Shell) reassemble(dirPath []string) string {
 
 func (s *Shell) readFile(filename string) {
 	data, _ := afero.ReadFile(s.Fs.MFS, filename)
-	fmt.Println(filename)
 	fmt.Println(string(data))
 }
