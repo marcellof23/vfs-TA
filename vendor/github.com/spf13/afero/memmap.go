@@ -416,7 +416,7 @@ func (m *MemMapFs) Chtimes(name string, atime time.Time, mtime time.Time) error 
 
 func (m *MemMapFs) List() {
 	for _, x := range m.data {
-		 y := mem.FileInfo{FileData: x}
-		 fmt.Println(x.Name() , y.IsDir())
+		y := mem.FileInfo{FileData: x}
+		fmt.Println(x.Name(), y.Size())
 	}
 }

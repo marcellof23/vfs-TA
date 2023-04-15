@@ -13,41 +13,60 @@ func (fs *Filesystem) Usage(comms []string) bool {
 	switch comms[0] {
 	case "mkdir":
 		if len(comms) < 2 {
-			fmt.Println("Usage : mkdir [list of directories to make]")
+			fmt.Println(constant.UsageCommandMkdir)
 			return false
 		}
-	case "stat":
-		if len(comms) < 2 {
-			fmt.Println("Usage : stat [list of directories to make]")
+	case "pwd":
+		if len(comms) >= 1 {
+			fmt.Println(constant.UsageCommandPwd)
 			return false
 		}
-	case "chmod":
-		if len(comms) < 2 {
-			fmt.Println("Usage : chmod [list of directories to make]")
+	case "ls":
+		if len(comms) > 1 {
+			fmt.Println(constant.UsageCommandLs)
 			return false
 		}
 	case "cat":
 		if len(comms) < 2 {
-			fmt.Println("Usage : cat [list of directories to make]")
+			fmt.Println(constant.UsageCommandCat)
+			return false
+		}
+	case "stat":
+		if len(comms) < 2 {
+			fmt.Println(constant.UsageCommandStat)
+			return false
+		}
+	case "touch":
+		if len(comms) < 2 {
+			fmt.Println(constant.UsageCommandTouch)
 			return false
 		}
 	case "rm":
 		if len(comms) < 2 {
-			fmt.Println(constant.UsageCommandRM)
+			fmt.Println(constant.UsageCommandRm)
 			return false
 		}
 	case "cp":
 		if len(comms) < 3 {
-			fmt.Println(constant.UsageCommandRM)
+			fmt.Println(constant.UsageCommandCp)
 			return false
 		}
 	case "mv":
 		if len(comms) < 3 {
-			fmt.Println(constant.UsageCommandRM)
+			fmt.Println(constant.UsageCommandMv)
+			return false
+		}
+	case "chmod":
+		if len(comms) < 2 {
+			fmt.Println(constant.UsageCommandChmod)
+			return false
+		}
+	case "upload":
+		if len(comms) < 3 {
+			fmt.Println(constant.UsageCommandUpload)
 			return false
 		}
 	}
-
 	return true
 }
 
@@ -66,8 +85,6 @@ func (fs *Filesystem) Execute(comms []string) bool {
 		fs.ListDir()
 	case "cat":
 		fs.Cat(comms[1])
-	case "test":
-		fs.Testing(comms[1])
 	case "stat":
 		stat, errs := fs.Stat(comms[1])
 		if err == nil {
@@ -92,15 +109,17 @@ func (fs *Filesystem) Execute(comms []string) bool {
 		fs.Move(comms[1], comms[2])
 	case "chmod":
 		fs.Chmod(comms[1], comms[2])
-	case "exit":
-		fs.TearDown()
-		os.Exit(1)
 	case "upload":
 		if comms[1] == "-r" {
 			fs.UploadDir(comms[2], comms[3])
 		} else {
 			fs.UploadFile(comms[1], comms[2])
 		}
+	case "test":
+		fs.Testing(comms[1])
+	case "exit":
+		fs.TearDown()
+		os.Exit(1)
 	default:
 		fmt.Println(comms[0], ": Command not found")
 		return false

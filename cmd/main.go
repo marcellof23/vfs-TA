@@ -1,12 +1,14 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
 	"github.com/spf13/cobra"
 
 	fsys "github.com/marcellof23/vfs-TA/pkg/fsys"
+	"github.com/marcellof23/vfs-TA/pkg/producer"
 	"github.com/marcellof23/vfs-TA/pkg/user"
 )
 
@@ -16,6 +18,12 @@ func shellLoop(currentUser *user.User) {
 	Fsys := fsys.New()
 	prompt := currentUser.InitPrompt()
 	shells := fsys.InitShell(Fsys)
+
+	ctx := context.Background()
+	// produce messages in a new go routine, since
+	// both the produce and consume functions are
+	// blocking
+	go producer.ProduceCommand(ctx)
 
 	for {
 		input, _ := prompt.Readline()
