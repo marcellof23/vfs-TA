@@ -29,6 +29,7 @@ func copyFilesystem(dirName, replicatePath string, fs *Filesystem) *Filesystem {
 	var fi os.FileInfo
 
 	index := 0
+
 	files, _ := os.ReadDir(replicatePath)
 	for index < len(files) {
 		fileName = files[index]

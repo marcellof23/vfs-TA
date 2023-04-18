@@ -1,11 +1,14 @@
 package fsys
 
 import (
+	"context"
 	"fmt"
 	"os"
 
 	"github.com/marcellof23/vfs-TA/constant"
 )
+
+// Filesystem Commands
 
 // Usage prints verifies that each command has the correct amount of
 // command arguments and throws an error if not.
@@ -71,14 +74,14 @@ func (fs *Filesystem) Usage(comms []string) bool {
 }
 
 // Execute runs the commands passed into it.
-func (fs *Filesystem) Execute(comms []string) bool {
+func (fs *Filesystem) Execute(ctx context.Context, comms []string) bool {
 	var err error
 	if fs.Usage(comms) == false {
 		return false
 	}
 	switch comms[0] {
 	case "mkdir":
-		fs.MkDir(comms[1])
+		fs.MkDir(ctx, comms[1])
 	case "pwd":
 		fs.Pwd()
 	case "ls":
@@ -101,7 +104,7 @@ func (fs *Filesystem) Execute(comms []string) bool {
 		}
 	case "cp":
 		if comms[1] == "-r" {
-			fs.CopyDir(comms[2], comms[3])
+			fs.CopyDir(ctx, comms[2], comms[3])
 		} else {
 			fs.CopyFile(comms[1], comms[2])
 		}
@@ -111,7 +114,7 @@ func (fs *Filesystem) Execute(comms []string) bool {
 		fs.Chmod(comms[1], comms[2])
 	case "upload":
 		if comms[1] == "-r" {
-			fs.UploadDir(comms[2], comms[3])
+			fs.UploadDir(ctx, comms[2], comms[3])
 		} else {
 			fs.UploadFile(comms[1], comms[2])
 		}
@@ -126,6 +129,34 @@ func (fs *Filesystem) Execute(comms []string) bool {
 	}
 	if err != nil {
 		fmt.Println(err.Error())
+	}
+	return true
+}
+
+// Shell Commands
+
+func (s *Shell) Usage(comms []string) bool {
+	switch comms[0] {
+	case "cd":
+		if len(comms) != 2 {
+			fmt.Println("Usage : cd [target directory]")
+			return false
+		}
+	}
+	return true
+}
+
+func (s *Shell) Execute(ctx context.Context, comms []string) bool {
+	if s.Usage(comms) == false {
+		return true
+	}
+	switch comms[0] {
+	case "cd":
+		s.ChDir(comms[1])
+	case "clear":
+		s.ClearScreen()
+	default:
+		return false
 	}
 	return true
 }

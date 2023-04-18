@@ -77,36 +77,3 @@ func (s *Shell) cat(filename string) {
 		}
 	}
 }
-
-func (s *Shell) usage(comms []string) bool {
-	switch comms[0] {
-	case "cd":
-		if len(comms) != 2 {
-			fmt.Println("Usage : cd [target directory")
-			return true
-		}
-	case "cat":
-		if len(comms) != 2 {
-			fmt.Println("Usage : Cat [target file]")
-			return true
-		}
-	}
-	return true
-}
-
-func (s *Shell) Execute(comms []string) bool {
-	if s.usage(comms) == false {
-		return false
-	}
-	switch comms[0] {
-	case "cd":
-		s.ChDir(comms[1])
-	//case "cat":
-	//	s.cat(comms[1])
-	case "clear":
-		s.ClearScreen()
-	default:
-		return false
-	}
-	return true
-}

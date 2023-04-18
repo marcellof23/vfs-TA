@@ -1,6 +1,7 @@
 package fsys
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -12,6 +13,7 @@ import (
 
 	"github.com/marcellof23/vfs-TA/boot"
 	"github.com/marcellof23/vfs-TA/constant"
+	"github.com/marcellof23/vfs-TA/pkg/producer"
 )
 
 type file struct {
@@ -84,11 +86,11 @@ func (fs *Filesystem) UploadFile(sourcePath, destPath string) error {
 }
 
 // UploadDir uploads a file to the virtual Filesystem.
-func (fs *Filesystem) UploadDir(sourcePath, destPath string) error {
+func (fs *Filesystem) UploadDir(ctx context.Context, sourcePath, destPath string) error {
 	fsDest, _ := fs.searchFS(destPath)
 
 	destPathBase := filepath.Base(destPath)
-	fsDest.MkDir(destPathBase)
+	fsDest.MkDir(ctx, destPathBase)
 	fsDest = fsDest.directories[destPathBase]
 
 	copyFilesystem(".", sourcePath, fsDest)
@@ -141,7 +143,7 @@ func (fs *Filesystem) Touch(filename string) error {
 }
 
 // MkDir makes a virtual directory.
-func (fs *Filesystem) MkDir(dirName string) bool {
+func (fs *Filesystem) MkDir(ctx context.Context, dirName string) bool {
 	dirName = fs.absPath(dirName)
 	currFs := root
 	segments := strings.Split(dirName, "/")
@@ -184,6 +186,12 @@ func (fs *Filesystem) MkDir(dirName string) bool {
 		}
 	}
 
+	msg := producer.Message{
+		Command: fmt.Sprintf("mkdir %s", dirName),
+		Buffer:  []byte{},
+	}
+
+	go producer.ProduceCommand(ctx, msg)
 	return true
 }
 
@@ -262,7 +270,7 @@ func (fs *Filesystem) CopyFile(pathSource, pathDest string) error {
 }
 
 // CopyDir copy a file from source to destination on the virtual Filesystem.
-func (fs *Filesystem) CopyDir(pathSource, pathDest string) error {
+func (fs *Filesystem) CopyDir(ctx context.Context, pathSource, pathDest string) error {
 	fsSource, _ := fs.searchFS(pathSource)
 	fsDest, _ := fs.searchFS(pathDest)
 
@@ -274,16 +282,30 @@ func (fs *Filesystem) CopyDir(pathSource, pathDest string) error {
 		fmt.Println("cp: ", err)
 		return errors.New("file or Directory does not exist")
 	}
-	fsDest.MkDir(pathDest)
+
+	isFolderExists := fsDest.rootPath == filepath.Base(pathDest)
+	if !isFolderExists {
+		fsDest.MkDir(ctx, pathDest)
+	}
 
 	walkFn := func(rootPath, path string, _ *Filesystem, err error) error {
+		if path == "" {
+			return nil
+		}
 		if isDir, _ := fs.isDir(path); isDir {
-			newDir := filepath.Join(pathDest, path)
-			fsDest.MkDir(newDir)
-		} else {
-			newFile := filepath.Join(pathDest, rootPath, path)
-			fsDest.Touch(newFile)
+			splitPaths := strings.Split(path, "/")
+			splitPaths = splitPaths[1:]
+			remainingPath := filepath.Join(splitPaths...)
 
+			newDir := filepath.Join(pathDest, remainingPath)
+			fsDest.MkDir(ctx, newDir)
+		} else {
+			splitPaths := strings.Split(rootPath, "/")
+			splitPaths = splitPaths[1:]
+			remainingPath := filepath.Join(splitPaths...)
+
+			newFile := filepath.Join(pathDest, remainingPath, path)
+			fsDest.Touch(newFile)
 		}
 		return nil
 	}
@@ -296,7 +318,7 @@ func (fs *Filesystem) CopyDir(pathSource, pathDest string) error {
 	return nil
 }
 
-// Move copy a file from source to destination on the virtual Filesystem.
+// Move copy a file from source to dxestination on the virtual Filesystem.
 func (fs *Filesystem) Move(pathSource, pathDest string) error {
 	pathSource = filepath.Base(pathSource)
 	pathDest = filepath.Base(pathDest)
@@ -359,15 +381,8 @@ func (fs *Filesystem) Cat(path string) {
 
 func (fs *Filesystem) Testing(path string) {
 
-	fi, _ := os.Stat(path)
-	fmt.Println(fi.Name(), fi.Size(), fi.Mode(), fi.ModTime(), fi.IsDir())
-
-	//walkFn := func(path string, fs *Filesystem, err error) error {
-	//	fmt.Printf("%s \n", path)
-	//	return nil
-	//}
-	//
-	//walkDir(fs, ".", walkFn)
+	fsFind, _ := fs.searchFS(path)
+	fmt.Println(fsFind.rootPath)
 }
 
 // SaveState aves the state of the VFS at this time.

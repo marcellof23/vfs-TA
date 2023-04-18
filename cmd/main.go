@@ -8,7 +8,6 @@ import (
 	"github.com/spf13/cobra"
 
 	fsys "github.com/marcellof23/vfs-TA/pkg/fsys"
-	"github.com/marcellof23/vfs-TA/pkg/producer"
 	"github.com/marcellof23/vfs-TA/pkg/user"
 )
 
@@ -20,10 +19,6 @@ func shellLoop(currentUser *user.User) {
 	shells := fsys.InitShell(Fsys)
 
 	ctx := context.Background()
-	// produce messages in a new go routine, since
-	// both the produce and consume functions are
-	// blocking
-	go producer.ProduceCommand(ctx)
 
 	for {
 		input, _ := prompt.Readline()
@@ -35,7 +30,7 @@ func shellLoop(currentUser *user.User) {
 		commands := strings.Split(input, " ")
 
 		// Execute the command for shell
-		shellFlag = shells.Execute(commands)
+		shellFlag = shells.Execute(ctx, commands)
 		currentUser.SetPrompt(prompt, shells.Fs)
 
 		Fsys = shells.Fs
@@ -44,7 +39,7 @@ func shellLoop(currentUser *user.User) {
 		}
 
 		// Execute the command for filesystem
-		shellFlag = Fsys.Execute(commands)
+		shellFlag = Fsys.Execute(ctx, commands)
 		currentUser.SetPrompt(prompt, Fsys)
 
 		shells.SetFilesystem(Fsys)
