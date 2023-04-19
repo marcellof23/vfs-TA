@@ -3,8 +3,9 @@ package producer
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log"
-	"os"
+	"time"
 
 	"github.com/segmentio/kafka-go"
 )
@@ -20,35 +21,64 @@ type Message struct {
 	Buffer  []byte
 }
 
-func ProduceCommand(ctx context.Context, msg Message) {
-	f, err := os.OpenFile("testlogfile", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
-	if err != nil {
-		log.Fatalf("error opening file: %v", err)
+type Effector func(context.Context, Message) error
+
+func Retry(effector Effector, delay time.Duration) Effector {
+	return func(ctx context.Context, msg Message) error {
+		log, ok := ctx.Value("logger").(*log.Logger)
+		if !ok {
+			return fmt.Errorf("logger not initiated")
+		}
+
+		for {
+			err := effector(ctx, msg)
+			if err == nil {
+				return err
+			}
+
+			log.Printf("Function call failed, retrying in %v\n", delay)
+
+			select {
+			case <-time.After(delay):
+			case <-ctx.Done():
+				return ctx.Err()
+			}
+		}
 	}
-	defer f.Close()
+}
 
-	l := log.New(f, "kafka writer: ", 0)
-
+func ProduceCommand(ctx context.Context, msg Message) error {
 	partition := 0
+
+	log, ok := ctx.Value("logger").(*log.Logger)
+	if !ok {
+		return fmt.Errorf("logger not initiated")
+	}
+
 	conn, err := kafka.DialLeader(ctx, network, brokerAddress, topic, partition)
 	if err != nil {
-		l.Println("failed to dial leader:", err)
+		log.Println("failed to dial leader:", err)
+		return err
 	}
 
 	var buff []byte
 	if buff, err = json.Marshal(msg); err != nil {
-		l.Println("failed to marshal:", err)
+		log.Println("failed to marshal:", err)
+		return err
 	}
 
 	_, err = conn.WriteMessages(
 		kafka.Message{Value: buff},
 	)
-
 	if err != nil {
-		log.Fatal("failed to write messages:", err)
+		log.Println("failed to write messages:", err)
+		return err
 	}
 
 	if err := conn.Close(); err != nil {
-		l.Fatal("failed to close writer:", err)
+		log.Println("failed to close writer:", err)
+		return err
 	}
+
+	return nil
 }

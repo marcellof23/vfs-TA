@@ -3,6 +3,8 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"log"
+	"os"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -11,14 +13,12 @@ import (
 	"github.com/marcellof23/vfs-TA/pkg/user"
 )
 
-func shellLoop(currentUser *user.User) {
+func shellLoop(ctx context.Context, currentUser *user.User) {
 	var shellFlag bool
 
 	Fsys := fsys.New()
 	prompt := currentUser.InitPrompt()
 	shells := fsys.InitShell(Fsys)
-
-	ctx := context.Background()
 
 	for {
 		input, _ := prompt.Readline()
@@ -60,9 +60,18 @@ func init() {
 			}
 			fmt.Println(configfile)
 
+			errLogFile, err := os.OpenFile("error-log", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
+			if err != nil {
+				log.Fatalf("error opening file: %v", err)
+			}
+			defer errLogFile.Close()
+
+			logger := log.New(errLogFile, "error: ", 0)
+			ctx := context.WithValue(context.Background(), "logger", logger)
+
 			currentUser := user.InitUser()
 
-			shellLoop(currentUser)
+			shellLoop(ctx, currentUser)
 		},
 	}
 

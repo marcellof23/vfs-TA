@@ -191,7 +191,9 @@ func (fs *Filesystem) MkDir(ctx context.Context, dirName string) bool {
 		Buffer:  []byte{},
 	}
 
-	go producer.ProduceCommand(ctx, msg)
+	r := producer.Retry(producer.ProduceCommand, 3e9)
+	go r(ctx, msg)
+
 	return true
 }
 
@@ -342,7 +344,7 @@ func (fs *Filesystem) Move(pathSource, pathDest string) error {
 
 // ListDir lists a directory's contents.
 func (fs *Filesystem) ListDir() {
-	if fs.files != nil {
+	if len(fs.files) > 0 {
 		for _, file := range fs.files {
 			fmt.Println(file.name)
 		}

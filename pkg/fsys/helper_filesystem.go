@@ -192,33 +192,3 @@ func walkDir(fsys *Filesystem, path string, walkDirFn WalkDirFunc) error {
 
 	return nil
 }
-
-func Walkdir(fsys *Filesystem, pathTarget string, walkDirFn WalkDirFunc) error {
-	if fsys.rootPath == pathTarget {
-		err := walkDir(fsys, pathTarget, walkDirFn)
-		if err != nil {
-			return err
-		}
-	}
-
-	if fsys.files != nil {
-		for _, _ = range fsys.files {
-			err := walkDir(fsys, pathTarget, walkDirFn)
-			if err != nil {
-				return err
-			}
-		}
-	}
-
-	if len(fsys.directories) > 0 {
-		for dirName := range fsys.directories {
-			fmt.Println("Directories: ", dirName)
-			name1 := filepath.Join(fsys.rootPath, dirName)
-			if err := walkDir(fsys.directories[dirName], name1, walkDirFn); err != nil {
-				return err
-			}
-		}
-	}
-
-	return nil
-}
