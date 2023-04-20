@@ -67,7 +67,7 @@ func (fs *Filesystem) Stat(filename string) (os.FileInfo, error) {
 }
 
 // UploadFile uploads a file to the virtual Filesystem.
-func (fs *Filesystem) UploadFile(sourcePath, destPath string) error {
+func (fs *Filesystem) UploadFile(ctx context.Context, sourcePath, destPath string) error {
 	fl, err := os.Stat(sourcePath)
 	if err != nil {
 		return fmt.Errorf("file %s not found", sourcePath)
@@ -76,11 +76,19 @@ func (fs *Filesystem) UploadFile(sourcePath, destPath string) error {
 	dat, _ := os.ReadFile(sourcePath)
 	mode := fl.Mode()
 
-	fs.Touch(destPath)
+	fs.Touch(ctx, destPath)
 	destFile, _ := fs.MFS.OpenFile(destPath, os.O_RDWR|os.O_CREATE, 0o600)
 	destFile.Truncate(fl.Size())
 	destFile.Write(dat)
 	fs.MFS.Chmod(filepath.Clean(destPath), mode.Perm())
+
+	msg := producer.Message{
+		Command: fmt.Sprintf("upload %s", fl.Name()),
+		Buffer:  dat,
+	}
+
+	r := producer.Retry(producer.ProduceCommand, 3e9)
+	go r(ctx, msg)
 
 	return nil
 }
@@ -97,7 +105,7 @@ func (fs *Filesystem) UploadDir(ctx context.Context, sourcePath, destPath string
 	return nil
 }
 
-func (fs *Filesystem) Touch(filename string) error {
+func (fs *Filesystem) Touch(ctx context.Context, filename string) error {
 	filename = fs.absPath(filename)
 	currFs := root
 	segments := strings.Split(filename, "/")
@@ -134,6 +142,14 @@ func (fs *Filesystem) Touch(filename string) error {
 				rootPath: currFs.rootPath + "/" + segment,
 			}
 			currFs.files[segment] = newFile
+
+			msg := producer.Message{
+				Command: fmt.Sprintf("touch %s", segment),
+				Buffer:  []byte{},
+			}
+
+			r := producer.Retry(producer.ProduceCommand, 3e9)
+			go r(ctx, msg)
 			return nil
 		}
 	}
@@ -163,7 +179,7 @@ func (fs *Filesystem) MkDir(ctx context.Context, dirName string) bool {
 		} else if dirExist {
 			currFs = currFs.directories[segment]
 			if idx == len(segments)-1 {
-				fmt.Printf("mkdir : diRKrectory %s already exists", segment)
+				fmt.Printf("mkdir : directory %s already exists", segment)
 				return false
 			}
 		} else if !dirExist {
@@ -185,14 +201,6 @@ func (fs *Filesystem) MkDir(ctx context.Context, dirName string) bool {
 			currFs = currFs.directories[segment]
 		}
 	}
-
-	msg := producer.Message{
-		Command: fmt.Sprintf("mkdir %s", dirName),
-		Buffer:  []byte{},
-	}
-
-	r := producer.Retry(producer.ProduceCommand, 3e9)
-	go r(ctx, msg)
 
 	return true
 }
@@ -247,24 +255,32 @@ func (fs *Filesystem) RemoveDir(path string) error {
 }
 
 // CopyFile copy a file from source to destination on the virtual Filesystem.
-func (fs *Filesystem) CopyFile(pathSource, pathDest string) error {
+func (fs *Filesystem) CopyFile(ctx context.Context, pathSource, pathDest string) error {
 	fsDest, _ := fs.searchFS(pathDest)
 
-	fl, err := fs.Stat(pathSource)
+	flSource, err := fs.Stat(pathSource)
 	if err != nil {
-		fmt.Println("cp: ", err)
-		return errors.New("file or Directory does not exist")
+		return errors.New("cp: file or Directory source does not exist")
+	}
+
+	_, err = fs.Stat(pathDest)
+	if err == nil {
+		return fmt.Errorf("cp: file or Directory destination with name %s is already exist", filepath.Base(pathDest))
+	}
+
+	if flSource.IsDir() {
+		return errors.New("cp: source path is a directory")
 	}
 
 	pathSourceFileName := fs.absPath(pathSource)
 	pathTargetFileName := fs.absPath(pathDest)
 
-	fsDest.Touch(pathDest)
+	fsDest.Touch(ctx, pathDest)
 	sourceFile, _ := fs.MFS.Open(pathSourceFileName)
 	destFile, _ := fs.MFS.OpenFile(pathTargetFileName, os.O_RDWR|os.O_CREATE, 0o600)
 
-	destFile.Truncate(fl.Size())
-	b := make([]byte, fl.Size())
+	destFile.Truncate(flSource.Size())
+	b := make([]byte, flSource.Size())
 	sourceFile.Read(b)
 	destFile.Write(b)
 
@@ -307,7 +323,16 @@ func (fs *Filesystem) CopyDir(ctx context.Context, pathSource, pathDest string) 
 			remainingPath := filepath.Join(splitPaths...)
 
 			newFile := filepath.Join(pathDest, remainingPath, path)
-			fsDest.Touch(newFile)
+			fsDest.Touch(ctx, newFile)
+
+			sourceFile, _ := fs.MFS.Open(filepath.Join(rootPath, path))
+			destFile, _ := fs.MFS.OpenFile(filepath.Join(fsDest.rootPath, newFile), os.O_RDWR|os.O_CREATE, 0o600)
+
+			fSource, _ := sourceFile.Stat()
+			destFile.Truncate(fSource.Size())
+			b := make([]byte, fSource.Size())
+			sourceFile.Read(b)
+			destFile.Write(b)
 		}
 		return nil
 	}
@@ -320,12 +345,12 @@ func (fs *Filesystem) CopyDir(ctx context.Context, pathSource, pathDest string) 
 	return nil
 }
 
-// Move copy a file from source to dxestination on the virtual Filesystem.
-func (fs *Filesystem) Move(pathSource, pathDest string) error {
+// Move copy a file from source to destination on the virtual Filesystem.
+func (fs *Filesystem) Move(ctx context.Context, pathSource, pathDest string) error {
 	pathSource = filepath.Base(pathSource)
 	pathDest = filepath.Base(pathDest)
 
-	_, err := fs.Stat(pathSource)
+	fileSource, err := fs.Stat(pathSource)
 	if err != nil {
 		return errors.New("file or Directory does not exist")
 	}
@@ -334,11 +359,21 @@ func (fs *Filesystem) Move(pathSource, pathDest string) error {
 	if infoDest != nil {
 		return errors.New("file or Directory destination already exist")
 	}
-	err = fs.CopyFile(pathSource, pathDest)
-	if err != nil {
-		return errors.New("file or Directory does not exist")
+
+	if !fileSource.IsDir() {
+		err = fs.CopyFile(ctx, pathSource, pathDest)
+		if err != nil {
+			return errors.New("file or Directory does not exist")
+		}
+		fs.RemoveFile(pathSource)
+	} else {
+		err = fs.CopyDir(ctx, pathSource, pathDest)
+		if err != nil {
+			return errors.New("file or Directory does not exist")
+		}
+		fs.RemoveDir(pathSource)
 	}
-	fs.RemoveFile(pathSource)
+
 	return nil
 }
 
@@ -377,14 +412,16 @@ func (fs *Filesystem) Chmod(perm, name string) error {
 }
 
 func (fs *Filesystem) Cat(path string) {
+	path = fs.absPath(path)
 	data, _ := afero.ReadFile(fs.MFS, path)
 	fmt.Println(string(data))
 }
 
 func (fs *Filesystem) Testing(path string) {
 
-	fsFind, _ := fs.searchFS(path)
-	fmt.Println(fsFind.rootPath)
+	fs.MFS.List()
+	//fsFind, _ := fs.searchFS(path)
+	//fmt.Println(fsFind.rootPath)
 }
 
 // SaveState aves the state of the VFS at this time.

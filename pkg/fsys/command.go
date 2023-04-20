@@ -95,7 +95,7 @@ func (fs *Filesystem) Execute(ctx context.Context, comms []string) bool {
 		}
 		err = errs
 	case "touch":
-		err = fs.Touch(comms[1])
+		err = fs.Touch(ctx, comms[1])
 	case "rm":
 		if comms[1] == "-r" {
 			err = fs.RemoveDir(comms[2])
@@ -104,19 +104,19 @@ func (fs *Filesystem) Execute(ctx context.Context, comms []string) bool {
 		}
 	case "cp":
 		if comms[1] == "-r" {
-			fs.CopyDir(ctx, comms[2], comms[3])
+			err = fs.CopyDir(ctx, comms[2], comms[3])
 		} else {
-			fs.CopyFile(comms[1], comms[2])
+			err = fs.CopyFile(ctx, comms[1], comms[2])
 		}
 	case "mv":
-		fs.Move(comms[1], comms[2])
+		fs.Move(ctx, comms[1], comms[2])
 	case "chmod":
 		fs.Chmod(comms[1], comms[2])
 	case "upload":
 		if comms[1] == "-r" {
 			fs.UploadDir(ctx, comms[2], comms[3])
 		} else {
-			fs.UploadFile(comms[1], comms[2])
+			fs.UploadFile(ctx, comms[1], comms[2])
 		}
 	case "test":
 		fs.Testing(comms[1])
