@@ -1,13 +1,26 @@
 package fsys
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 )
 
+var ErrTokenNotFound = errors.New("failed to get token from context")
+
 type WalkDirFunc func(path, filename string, fs *Filesystem, err error) error
+
+func GetTokenFromContext(c context.Context) (string, error) {
+	tmp := c.Value("token")
+	token, ok := tmp.(string)
+	if !ok {
+		return "", ErrTokenNotFound
+	}
+	return token, nil
+}
 
 func (fs *Filesystem) PrintStat(info os.FileInfo, filename string) {
 	if info != nil {

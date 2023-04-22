@@ -18,6 +18,8 @@ const (
 
 type Message struct {
 	Command string
+	AbsPath string
+	Token   string
 	Buffer  []byte
 }
 

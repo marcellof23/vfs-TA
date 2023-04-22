@@ -1,8 +1,6 @@
 package user
 
 import (
-	"crypto/rand"
-	"encoding/base64"
 	"fmt"
 	"log"
 
@@ -14,30 +12,17 @@ import (
 
 // The main User object.
 type User struct {
-	userID     string         // A randomized hash string representing the users's unique ID.
 	Username   string         // The User's onscreen name.
+	Token      string         // User token
 	accessList map[string]int // A map containing the unique hashes and access rights for each file.
 }
 
-// generateRandomID generates a random userID value.
-func generateRandomID() string {
-	// return uint64(rand.Uint32()) << 32 + uint64(rand.Uint32())
-	bytes := make([]byte, 64)
-	rand.Read(bytes)
-	return base64.URLEncoding.EncodeToString(bytes)
-}
-
 // createUser creates a User object.
-func createUser(username string) *User {
+func createUser(username, token string) *User {
 	return &User{
-		userID:   generateRandomID(),
 		Username: username,
+		Token:    token,
 	}
-}
-
-// updateUsername updates the name of the current User.
-func (currentUser *User) updateUsername(username string) {
-	currentUser.Username = username
 }
 
 // updateUsername updates the name of the current User.

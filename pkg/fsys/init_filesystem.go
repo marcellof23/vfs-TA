@@ -88,7 +88,6 @@ func replicateFilesystem(dirName, replicatePath string, fs *Filesystem) *Filesys
 				fs.MFS.Mkdir(filepath.Join(fs.rootPath, dirname), mode.Perm())
 				replicateFilesystem(dirName+"/"+fileName.Name(), replicatePath+"/"+fileName.Name(), fs.directories[fileName.Name()])
 			}
-
 		} else {
 			if fileName.Name() != "vendor" && fileName.Name() != ".git" {
 				fs.files[fileName.Name()] = &file{
@@ -99,10 +98,9 @@ func replicateFilesystem(dirName, replicatePath string, fs *Filesystem) *Filesys
 				memfile, _ := fs.MFS.Create(fname)
 				memfile.Truncate(fi.Size())
 				memfile.Write(dat)
-				fs.MFS.Chmod(filepath.Clean(fname), mode.Perm())
+				fs.MFS.Chmod(filepath.Clean(fname), mode)
 			}
 		}
-
 		index++
 	}
 	return fs

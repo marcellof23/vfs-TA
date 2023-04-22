@@ -70,6 +70,7 @@ func init() {
 			ctx := context.WithValue(context.Background(), "logger", logger)
 
 			currentUser := user.InitUser()
+			ctx = context.WithValue(ctx, "token", currentUser.Token)
 
 			shellLoop(ctx, currentUser)
 		},

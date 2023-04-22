@@ -83,10 +83,12 @@ func (fs *Filesystem) UploadFile(ctx context.Context, sourcePath, destPath strin
 	fs.MFS.Chmod(filepath.Clean(destPath), mode.Perm())
 
 	msg := producer.Message{
-		Command: fmt.Sprintf("upload %s", fl.Name()),
+		Command: fmt.Sprintf("upload"),
+		AbsPath: destFile.Name(),
 		Buffer:  dat,
 	}
 
+	fmt.Println(string(dat))
 	r := producer.Retry(producer.ProduceCommand, 3e9)
 	go r(ctx, msg)
 
@@ -144,7 +146,7 @@ func (fs *Filesystem) Touch(ctx context.Context, filename string) error {
 			currFs.files[segment] = newFile
 
 			msg := producer.Message{
-				Command: fmt.Sprintf("touch %s", segment),
+				Command: fmt.Sprintf("touch"),
 				Buffer:  []byte{},
 			}
 
@@ -153,9 +155,7 @@ func (fs *Filesystem) Touch(ctx context.Context, filename string) error {
 			return nil
 		}
 	}
-
 	return nil
-
 }
 
 // MkDir makes a virtual directory.
@@ -163,6 +163,7 @@ func (fs *Filesystem) MkDir(ctx context.Context, dirName string) bool {
 	dirName = fs.absPath(dirName)
 	currFs := root
 	segments := strings.Split(dirName, "/")
+
 	for idx, segment := range segments {
 		dirExist := fs.doesDirExistRelativePath(segment, currFs)
 		if segment == "." {
@@ -199,6 +200,20 @@ func (fs *Filesystem) MkDir(ctx context.Context, dirName string) bool {
 
 			currFs.directories[segment] = &Filesystem{currFs.MemFilesystem, newDir}
 			currFs = currFs.directories[segment]
+
+			token, err := GetTokenFromContext(ctx)
+			if err != nil {
+				fmt.Println(err)
+			}
+
+			msg := producer.Message{
+				Command: fmt.Sprintf("mkdir"),
+				Buffer:  []byte{},
+				Token:   token,
+			}
+
+			r := producer.Retry(producer.ProduceCommand, 3e9)
+			go r(ctx, msg)
 		}
 	}
 
@@ -206,7 +221,7 @@ func (fs *Filesystem) MkDir(ctx context.Context, dirName string) bool {
 }
 
 // RemoveFile removes a File from the virtual Filesystem.
-func (fs *Filesystem) RemoveFile(filename string) error {
+func (fs *Filesystem) RemoveFile(ctx context.Context, filename string) error {
 	absFilename := fs.absPath(filename)
 	info, err := fs.Stat(filename)
 	if err != nil {
@@ -229,11 +244,19 @@ func (fs *Filesystem) RemoveFile(filename string) error {
 	}
 	delete(fsTarget.files, filename)
 
+	msg := producer.Message{
+		Command: fmt.Sprintf("rm"),
+		Buffer:  []byte{},
+	}
+
+	r := producer.Retry(producer.ProduceCommand, 3e9)
+	go r(ctx, msg)
+
 	return nil
 }
 
 // RemoveDir removes a directory from the virtual Filesystem.
-func (fs *Filesystem) RemoveDir(path string) error {
+func (fs *Filesystem) RemoveDir(ctx context.Context, path string) error {
 	path = fs.absPath(path)
 	err := fs.MFS.RemoveAll(path)
 	if err != nil {
@@ -250,6 +273,14 @@ func (fs *Filesystem) RemoveDir(path string) error {
 		fmt.Print(err)
 	}
 	delete(fs.directories, path)
+
+	msg := producer.Message{
+		Command: fmt.Sprintf("rm -r"),
+		Buffer:  []byte{},
+	}
+
+	r := producer.Retry(producer.ProduceCommand, 3e9)
+	go r(ctx, msg)
 
 	return nil
 }
@@ -365,13 +396,13 @@ func (fs *Filesystem) Move(ctx context.Context, pathSource, pathDest string) err
 		if err != nil {
 			return errors.New("file or Directory does not exist")
 		}
-		fs.RemoveFile(pathSource)
+		fs.RemoveFile(ctx, pathSource)
 	} else {
 		err = fs.CopyDir(ctx, pathSource, pathDest)
 		if err != nil {
 			return errors.New("file or Directory does not exist")
 		}
-		fs.RemoveDir(pathSource)
+		fs.RemoveDir(ctx, pathSource)
 	}
 
 	return nil

@@ -98,9 +98,9 @@ func (fs *Filesystem) Execute(ctx context.Context, comms []string) bool {
 		err = fs.Touch(ctx, comms[1])
 	case "rm":
 		if comms[1] == "-r" {
-			err = fs.RemoveDir(comms[2])
+			err = fs.RemoveDir(ctx, comms[2])
 		} else {
-			err = fs.RemoveFile(comms[1])
+			err = fs.RemoveFile(ctx, comms[1])
 		}
 	case "cp":
 		if comms[1] == "-r" {
