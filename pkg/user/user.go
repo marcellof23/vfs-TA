@@ -45,18 +45,24 @@ func (currentUser *User) SetPrompt(prompt *readline.Instance, fs *fsys.Filesyste
 // shell.
 func (currentUser *User) InitPrompt() *readline.Instance {
 	autoCompleter := readline.NewPrefixCompleter(
-		readline.PcItem("open"),
-		readline.PcItem("close"),
 		readline.PcItem("mkdir"),
-		readline.PcItem("cd"),
-		readline.PcItem("rmdir"),
+		readline.PcItem("pwd"),
+		readline.PcItem("ls"),
+		readline.PcItem("cat"),
+		readline.PcItem("stat"),
+		readline.PcItem("touch"),
 		readline.PcItem("rm"),
+		readline.PcItem("cp"),
+		readline.PcItem("mv"),
+		readline.PcItem("chmod"),
+		readline.PcItem("upload"),
 		readline.PcItem("exit"),
 	)
 
 	coloredUsername := fmt.Sprintf("\x1b[%dm%s\x1b[0m", constant.ColorHiGreen, currentUser.Username)
+	coloredRootPath := fmt.Sprintf("\x1b[%dm%s\x1b[0m", constant.ColorHiBlue, "/")
 	prompt, err := readline.NewEx(&readline.Config{
-		Prompt:          coloredUsername + ":" + "$>",
+		Prompt:          coloredUsername + ":" + coloredRootPath + "$>",
 		HistoryFile:     "/tmp/commands.tmp",
 		AutoComplete:    autoCompleter,
 		InterruptPrompt: "^C",

@@ -16,11 +16,16 @@ const (
 	topic         = "command-log"
 )
 
+var (
+	commandLog *log.Logger
+)
+
 type Message struct {
-	Command string
-	AbsPath string
-	Token   string
-	Buffer  []byte
+	Command       string
+	AbsPathSource string
+	AbsPathDest   string
+	Token         string
+	Buffer        []byte
 }
 
 type Effector func(context.Context, Message) error
@@ -34,7 +39,7 @@ func Retry(effector Effector, delay time.Duration) Effector {
 
 		for {
 			err := effector(ctx, msg)
-			if err == nil {
+			if err != nil {
 				return err
 			}
 
@@ -72,6 +77,9 @@ func ProduceCommand(ctx context.Context, msg Message) error {
 	_, err = conn.WriteMessages(
 		kafka.Message{Value: buff},
 	)
+
+	log.Println(msg.Command, msg.AbsPathSource, msg.AbsPathDest)
+
 	if err != nil {
 		log.Println("failed to write messages:", err)
 		return err

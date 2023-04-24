@@ -6,10 +6,14 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 )
 
-var ErrTokenNotFound = errors.New("failed to get token from context")
+var (
+	ErrTokenNotFound    = errors.New("failed to get token from context")
+	ErrUsernameNotFound = errors.New("failed to get username from context")
+)
 
 type WalkDirFunc func(path, filename string, fs *Filesystem, err error) error
 
@@ -20,6 +24,34 @@ func GetTokenFromContext(c context.Context) (string, error) {
 		return "", ErrTokenNotFound
 	}
 	return token, nil
+}
+
+func SortFiles(m map[string]*file) []string {
+	keys := make([]string, 0, len(m))
+
+	for key := range m {
+		keys = append(keys, key)
+	}
+
+	sort.SliceStable(keys, func(i, j int) bool {
+		return strings.ToLower(m[keys[i]].name) < strings.ToLower(m[keys[j]].name)
+	})
+
+	return keys
+}
+
+func SortDirs(m map[string]*Filesystem) []string {
+	keys := make([]string, 0, len(m))
+
+	for key := range m {
+		keys = append(keys, key)
+	}
+
+	sort.SliceStable(keys, func(i, j int) bool {
+		return strings.ToLower(m[keys[i]].name) < strings.ToLower(m[keys[j]].name)
+	})
+
+	return keys
 }
 
 func (fs *Filesystem) PrintStat(info os.FileInfo, filename string) {
@@ -60,6 +92,34 @@ func (fs *Filesystem) verifyPath(dirName string) (*Filesystem, error) {
 		} else if fs.doesFileExistRelativePath(segment, checker) {
 			return checker, nil
 		} else {
+			return fs, fmt.Errorf("Error : %s doesn't exist\n", dirName)
+		}
+	}
+	return checker, nil
+}
+
+// searchFS to check file or dir exists
+func (fs *Filesystem) searchFS2(dirName string) (*Filesystem, error) {
+	checker := root
+	segments := strings.Split(dirName, "/")
+
+	for idx, segment := range segments {
+		if segment == "." {
+			continue
+		}
+		if len(segment) == 0 {
+			continue
+		}
+		if segment == ".." {
+			if checker.prev == nil {
+				continue
+			}
+			checker = checker.prev
+		} else if fs.doesDirExistRelativePath(segment, checker) {
+			checker = checker.directories[segment]
+		} else if fs.doesFileExistRelativePath(segment, checker) {
+			return checker, nil
+		} else if idx != len(segments)-1 {
 			return fs, fmt.Errorf("Error : %s doesn't exist\n", dirName)
 		}
 	}

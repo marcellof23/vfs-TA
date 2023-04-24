@@ -16,7 +16,7 @@ type Credentials struct {
 	Password string `json:"password"`
 }
 
-type Resp struct {
+type UserResp struct {
 	Data struct {
 		Username string `json:"username"`
 	} `json:"data"`
@@ -80,7 +80,7 @@ func register() (string, string) {
 		}
 
 		body, err := io.ReadAll(resp.Body)
-		post := Resp{}
+		post := UserResp{}
 
 		err = json.Unmarshal(body, &post)
 		if err != nil {
@@ -130,7 +130,7 @@ func login() (string, string) {
 		}
 
 		body, err := io.ReadAll(resp.Body)
-		post := Resp{}
+		post := UserResp{}
 
 		err = json.Unmarshal(body, &post)
 		if err != nil {

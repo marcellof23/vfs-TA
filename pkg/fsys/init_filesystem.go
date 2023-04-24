@@ -1,12 +1,15 @@
 package fsys
 
 import (
+	"context"
+	"fmt"
 	gofs "io/fs"
 	"os"
 	"path/filepath"
 	"strings"
 
 	"github.com/marcellof23/vfs-TA/boot"
+	"github.com/marcellof23/vfs-TA/pkg/producer"
 )
 
 // Initiation Virtual MemFilesystem
@@ -24,7 +27,7 @@ func New() *Filesystem {
 
 // testFilessytemCreation initializes the Filesystem by replicating
 // the current root directory and all it's child direcctories.
-func copyFilesystem(dirName, replicatePath string, fs *Filesystem) *Filesystem {
+func copyFilesystem(ctx context.Context, dirName, replicatePath, targetPath string, fs *Filesystem) *Filesystem {
 	var fileName gofs.DirEntry
 	var fi os.FileInfo
 
@@ -39,9 +42,8 @@ func copyFilesystem(dirName, replicatePath string, fs *Filesystem) *Filesystem {
 		if mode.IsDir() {
 			if fileName.Name() != "vendor" && fileName.Name() != ".git" {
 				dirname := fileName.Name()
-				fs.directories[dirname] = makeFilesystem(dirname, strings.ReplaceAll(dirName, "//", "/")+"/"+fileName.Name(), fs, fs.MemFilesystem)
-				fs.MFS.Mkdir(filepath.Join(fs.rootPath, dirname), mode.Perm())
-				replicateFilesystem(dirName+"/"+fileName.Name(), replicatePath+"/"+fileName.Name(), fs.directories[fileName.Name()])
+				fs.MkDir(ctx, dirname)
+				copyFilesystem(ctx, dirName+"/"+fileName.Name(), replicatePath+"/"+fileName.Name(), targetPath, fs.directories[fileName.Name()])
 			}
 
 		} else {
@@ -51,10 +53,26 @@ func copyFilesystem(dirName, replicatePath string, fs *Filesystem) *Filesystem {
 					rootPath: strings.ReplaceAll(dirName, "//", "/") + "/" + fileName.Name(),
 				}
 				fname := fs.files[fileName.Name()].rootPath
-				memfile, _ := fs.MFS.Create(fname)
+				memfile, _ := fs.MFS.Create(filepath.Join(targetPath, fname))
 				memfile.Truncate(fi.Size())
 				memfile.Write(dat)
 				fs.MFS.Chmod(filepath.Clean(fname), mode.Perm())
+
+				token, err := GetTokenFromContext(ctx)
+				if err != nil {
+					fmt.Println(err)
+				}
+
+				msg := producer.Message{
+					Command:       "upload",
+					Token:         token,
+					AbsPathSource: fname,
+					AbsPathDest:   targetPath,
+					Buffer:        dat,
+				}
+
+				r := producer.Retry(producer.ProduceCommand, 3e9)
+				go r(ctx, msg)
 			}
 		}
 

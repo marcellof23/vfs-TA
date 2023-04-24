@@ -82,13 +82,19 @@ func (fs *Filesystem) UploadFile(ctx context.Context, sourcePath, destPath strin
 	destFile.Write(dat)
 	fs.MFS.Chmod(filepath.Clean(destPath), mode.Perm())
 
-	msg := producer.Message{
-		Command: fmt.Sprintf("upload"),
-		AbsPath: destFile.Name(),
-		Buffer:  dat,
+	token, err := GetTokenFromContext(ctx)
+	if err != nil {
+		fmt.Println(err)
 	}
 
-	fmt.Println(string(dat))
+	msg := producer.Message{
+		Command:       "upload",
+		Token:         token,
+		AbsPathSource: destFile.Name(),
+		AbsPathDest:   destFile.Name(),
+		Buffer:        dat,
+	}
+
 	r := producer.Retry(producer.ProduceCommand, 3e9)
 	go r(ctx, msg)
 
@@ -103,7 +109,7 @@ func (fs *Filesystem) UploadDir(ctx context.Context, sourcePath, destPath string
 	fsDest.MkDir(ctx, destPathBase)
 	fsDest = fsDest.directories[destPathBase]
 
-	copyFilesystem(".", sourcePath, fsDest)
+	copyFilesystem(ctx, ".", sourcePath, fs.absPath(destPath), fsDest)
 	return nil
 }
 
@@ -145,13 +151,6 @@ func (fs *Filesystem) Touch(ctx context.Context, filename string) error {
 			}
 			currFs.files[segment] = newFile
 
-			msg := producer.Message{
-				Command: fmt.Sprintf("touch"),
-				Buffer:  []byte{},
-			}
-
-			r := producer.Retry(producer.ProduceCommand, 3e9)
-			go r(ctx, msg)
 			return nil
 		}
 	}
@@ -207,9 +206,10 @@ func (fs *Filesystem) MkDir(ctx context.Context, dirName string) bool {
 			}
 
 			msg := producer.Message{
-				Command: fmt.Sprintf("mkdir"),
-				Buffer:  []byte{},
-				Token:   token,
+				Command:       "mkdir",
+				Token:         token,
+				AbsPathSource: dirName,
+				Buffer:        []byte{},
 			}
 
 			r := producer.Retry(producer.ProduceCommand, 3e9)
@@ -237,16 +237,24 @@ func (fs *Filesystem) RemoveFile(ctx context.Context, filename string) error {
 		return err
 	}
 
-	fsTarget, err := fs.searchFS(absFilename)
+	fsTarget, err := fs.searchFS2(absFilename)
 	if err != nil {
 		errs := fmt.Sprintf("rm : cannot remove '%s': path not found", filename)
 		return errors.New(errs)
 	}
 	delete(fsTarget.files, filename)
 
+	token, err := GetTokenFromContext(ctx)
+	if err != nil {
+		fmt.Println(err)
+	}
+
 	msg := producer.Message{
-		Command: fmt.Sprintf("rm"),
-		Buffer:  []byte{},
+		Command:       fmt.Sprintf("rm"),
+		Token:         token,
+		AbsPathSource: absFilename,
+		AbsPathDest:   "",
+		Buffer:        []byte{},
 	}
 
 	r := producer.Retry(producer.ProduceCommand, 3e9)
@@ -274,9 +282,17 @@ func (fs *Filesystem) RemoveDir(ctx context.Context, path string) error {
 	}
 	delete(fs.directories, path)
 
+	token, err := GetTokenFromContext(ctx)
+	if err != nil {
+		fmt.Println(err)
+	}
+
 	msg := producer.Message{
-		Command: fmt.Sprintf("rm -r"),
-		Buffer:  []byte{},
+		Command:       "rm -r",
+		Token:         token,
+		AbsPathSource: path,
+		AbsPathDest:   "",
+		Buffer:        []byte{},
 	}
 
 	r := producer.Retry(producer.ProduceCommand, 3e9)
@@ -411,12 +427,15 @@ func (fs *Filesystem) Move(ctx context.Context, pathSource, pathDest string) err
 // ListDir lists a directory's contents.
 func (fs *Filesystem) ListDir() {
 	if len(fs.files) > 0 {
-		for _, file := range fs.files {
-			fmt.Println(file.name)
+		files := SortFiles(fs.files)
+		for _, file := range files {
+			fmt.Println(file)
 		}
 	}
+
 	if len(fs.directories) > 0 {
-		for dirName := range fs.directories {
+		directories := SortDirs(fs.directories)
+		for _, dirName := range directories {
 			coloredDir := fmt.Sprintf("\x1b[%dm%s\x1b[0m", constant.ColorBlue, dirName)
 			fmt.Println(coloredDir)
 		}
