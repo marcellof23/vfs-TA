@@ -39,7 +39,7 @@ func Retry(effector Effector, delay time.Duration) Effector {
 
 		for {
 			err := effector(ctx, msg)
-			if err != nil {
+			if err == nil {
 				return err
 			}
 

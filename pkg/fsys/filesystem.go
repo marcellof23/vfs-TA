@@ -179,7 +179,7 @@ func (fs *Filesystem) MkDir(ctx context.Context, dirName string) bool {
 		} else if dirExist {
 			currFs = currFs.directories[segment]
 			if idx == len(segments)-1 {
-				fmt.Printf("mkdir : directory %s already exists", segment)
+				fmt.Printf("mkdir : directory %s already exists\n", segment)
 				return false
 			}
 		} else if !dirExist {
@@ -303,7 +303,17 @@ func (fs *Filesystem) RemoveDir(ctx context.Context, path string) error {
 
 // CopyFile copy a file from source to destination on the virtual Filesystem.
 func (fs *Filesystem) CopyFile(ctx context.Context, pathSource, pathDest string) error {
-	fsDest, _ := fs.searchFS(pathDest)
+	//var remainingPathDest string
+	//splitPaths := strings.Split(pathDest, "/")
+	//if len(splitPaths) == 1 {
+	//	remainingPathDest = "."
+	//}
+	//splitPaths = splitPaths[:len(splitPaths)-1]
+	//remainingPathDest = filepath.Join(splitPaths...)
+	_, err := fs.searchFS(pathDest)
+	if err != nil {
+		return errors.New("cp: directory destination does not exist")
+	}
 
 	flSource, err := fs.Stat(pathSource)
 	if err != nil {
@@ -322,7 +332,7 @@ func (fs *Filesystem) CopyFile(ctx context.Context, pathSource, pathDest string)
 	pathSourceFileName := fs.absPath(pathSource)
 	pathTargetFileName := fs.absPath(pathDest)
 
-	fsDest.Touch(ctx, pathDest)
+	fs.Touch(ctx, pathDest)
 	sourceFile, _ := fs.MFS.Open(pathSourceFileName)
 	destFile, _ := fs.MFS.OpenFile(pathTargetFileName, os.O_RDWR|os.O_CREATE, 0o600)
 
@@ -330,6 +340,23 @@ func (fs *Filesystem) CopyFile(ctx context.Context, pathSource, pathDest string)
 	b := make([]byte, flSource.Size())
 	sourceFile.Read(b)
 	destFile.Write(b)
+
+	//token, err := GetTokenFromContext(ctx)
+	//if err != nil {
+	//	fmt.Println(err)
+	//}
+
+	//msg := producer.Message{
+	//	Command:       "cp",
+	//	Token:         token,
+	//	AbsPathSource: pathSourceFileName,
+	//	AbsPathDest:   pathTargetFileName,
+	//	Buffer:        []byte{},
+	//}
+
+	//fmt.Println(msg.AbsPathSource, msg.AbsPathDest)
+	//r := producer.Retry(producer.ProduceCommand, 3e9)
+	//go r(ctx, msg)
 
 	return nil
 }
@@ -370,16 +397,8 @@ func (fs *Filesystem) CopyDir(ctx context.Context, pathSource, pathDest string) 
 			remainingPath := filepath.Join(splitPaths...)
 
 			newFile := filepath.Join(pathDest, remainingPath, path)
-			fsDest.Touch(ctx, newFile)
+			fs.CopyFile(ctx, filepath.Join(rootPath, path), newFile)
 
-			sourceFile, _ := fs.MFS.Open(filepath.Join(rootPath, path))
-			destFile, _ := fs.MFS.OpenFile(filepath.Join(fsDest.rootPath, newFile), os.O_RDWR|os.O_CREATE, 0o600)
-
-			fSource, _ := sourceFile.Stat()
-			destFile.Truncate(fSource.Size())
-			b := make([]byte, fSource.Size())
-			sourceFile.Read(b)
-			destFile.Write(b)
 		}
 		return nil
 	}

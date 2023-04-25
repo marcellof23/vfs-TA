@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"os"
 	"strings"
@@ -54,12 +53,6 @@ func init() {
 		Use:   "shell",
 		Short: "Runs the main Shell Loop for the MemFilesystem",
 		Run: func(cmd *cobra.Command, args []string) {
-			configfile := files
-			if len(args) != 0 {
-				configfile = args[0]
-			}
-			fmt.Println(configfile)
-
 			errLogFile, err := os.OpenFile("error-log", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
 			if err != nil {
 				log.Fatalf("error opening file: %v", err)
