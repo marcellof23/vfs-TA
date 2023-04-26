@@ -81,7 +81,7 @@ func (fs *Filesystem) Execute(ctx context.Context, comms []string) bool {
 	}
 	switch comms[0] {
 	case "mkdir":
-		fs.MkDir(ctx, comms[1])
+		err = fs.MkDir(ctx, comms[1])
 	case "pwd":
 		fs.Pwd()
 	case "ls":

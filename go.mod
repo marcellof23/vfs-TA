@@ -7,6 +7,7 @@ require (
 	github.com/segmentio/kafka-go v0.4.39
 	github.com/spf13/afero v1.9.5
 	github.com/spf13/cobra v1.6.1
+	gopkg.in/yaml.v3 v3.0.1
 )
 
 require (

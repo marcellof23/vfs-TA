@@ -8,6 +8,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/marcellof23/vfs-TA/boot"
 	fsys "github.com/marcellof23/vfs-TA/pkg/fsys"
 	"github.com/marcellof23/vfs-TA/pkg/user"
 )
@@ -59,10 +60,21 @@ func init() {
 			}
 			defer errLogFile.Close()
 
+			configfile := files
+			cfg, err := boot.LoadConfig(configfile)
+			if err != nil {
+				log.Fatal(err)
+			}
+
+			dep, err := boot.InitDependencies(cfg)
+			if err != nil {
+				log.Fatal(err)
+			}
+
 			logger := log.New(errLogFile, "error: ", 0)
 			ctx := context.WithValue(context.Background(), "logger", logger)
 
-			currentUser := user.InitUser()
+			currentUser := user.InitUser(dep)
 			ctx = context.WithValue(ctx, "token", currentUser.Token)
 			ctx = context.WithValue(ctx, "username", currentUser.Username)
 

@@ -158,7 +158,7 @@ func (fs *Filesystem) Touch(ctx context.Context, filename string) error {
 }
 
 // MkDir makes a virtual directory.
-func (fs *Filesystem) MkDir(ctx context.Context, dirName string) bool {
+func (fs *Filesystem) MkDir(ctx context.Context, dirName string) error {
 	dirName = fs.absPath(dirName)
 	currFs := root
 	segments := strings.Split(dirName, "/")
@@ -179,14 +179,12 @@ func (fs *Filesystem) MkDir(ctx context.Context, dirName string) bool {
 		} else if dirExist {
 			currFs = currFs.directories[segment]
 			if idx == len(segments)-1 {
-				fmt.Printf("mkdir : directory %s already exists\n", segment)
-				return false
+				return fmt.Errorf("mkdir : directory %s already exists", segment)
 			}
 		} else if !dirExist {
 			err := fs.MFS.MkdirAll(filepath.Join(currFs.rootPath, segment), 0o700)
 			if err != nil {
-				fmt.Println(err)
-				return false
+				return err
 			}
 
 			newDir := &fileDir{
@@ -217,7 +215,7 @@ func (fs *Filesystem) MkDir(ctx context.Context, dirName string) bool {
 		}
 	}
 
-	return true
+	return nil
 }
 
 // RemoveFile removes a File from the virtual Filesystem.
@@ -303,16 +301,15 @@ func (fs *Filesystem) RemoveDir(ctx context.Context, path string) error {
 
 // CopyFile copy a file from source to destination on the virtual Filesystem.
 func (fs *Filesystem) CopyFile(ctx context.Context, pathSource, pathDest string) error {
-	//var remainingPathDest string
-	//splitPaths := strings.Split(pathDest, "/")
-	//if len(splitPaths) == 1 {
-	//	remainingPathDest = "."
-	//}
-	//splitPaths = splitPaths[:len(splitPaths)-1]
-	//remainingPathDest = filepath.Join(splitPaths...)
-	_, err := fs.searchFS(pathDest)
-	if err != nil {
-		return errors.New("cp: directory destination does not exist")
+	var remainingPathDest string
+	splitPaths := strings.Split(pathDest, "/")
+	splitPaths = splitPaths[:len(splitPaths)-1]
+	remainingPathDest = filepath.Join(splitPaths...)
+	if len(splitPaths) > 1 {
+		_, err := fs.verifyPath(remainingPathDest)
+		if err != nil {
+			fmt.Println(err)
+		}
 	}
 
 	flSource, err := fs.Stat(pathSource)
@@ -341,22 +338,21 @@ func (fs *Filesystem) CopyFile(ctx context.Context, pathSource, pathDest string)
 	sourceFile.Read(b)
 	destFile.Write(b)
 
-	//token, err := GetTokenFromContext(ctx)
-	//if err != nil {
-	//	fmt.Println(err)
-	//}
+	token, err := GetTokenFromContext(ctx)
+	if err != nil {
+		fmt.Println(err)
+	}
 
-	//msg := producer.Message{
-	//	Command:       "cp",
-	//	Token:         token,
-	//	AbsPathSource: pathSourceFileName,
-	//	AbsPathDest:   pathTargetFileName,
-	//	Buffer:        []byte{},
-	//}
+	msg := producer.Message{
+		Command:       "cp",
+		Token:         token,
+		AbsPathSource: pathSourceFileName,
+		AbsPathDest:   pathTargetFileName,
+		Buffer:        []byte{},
+	}
 
-	//fmt.Println(msg.AbsPathSource, msg.AbsPathDest)
-	//r := producer.Retry(producer.ProduceCommand, 3e9)
-	//go r(ctx, msg)
+	r := producer.Retry(producer.ProduceCommand, 3e9)
+	go r(ctx, msg)
 
 	return nil
 }
@@ -377,7 +373,7 @@ func (fs *Filesystem) CopyDir(ctx context.Context, pathSource, pathDest string) 
 
 	isFolderExists := fsDest.rootPath == filepath.Base(pathDest)
 	if !isFolderExists {
-		fsDest.MkDir(ctx, pathDest)
+		fsDest.MkDir(ctx, pathSource)
 	}
 
 	walkFn := func(rootPath, path string, _ *Filesystem, err error) error {
@@ -389,14 +385,14 @@ func (fs *Filesystem) CopyDir(ctx context.Context, pathSource, pathDest string) 
 			splitPaths = splitPaths[1:]
 			remainingPath := filepath.Join(splitPaths...)
 
-			newDir := filepath.Join(pathDest, remainingPath)
+			newDir := filepath.Join(pathSource, remainingPath)
 			fsDest.MkDir(ctx, newDir)
 		} else {
 			splitPaths := strings.Split(rootPath, "/")
 			splitPaths = splitPaths[1:]
 			remainingPath := filepath.Join(splitPaths...)
 
-			newFile := filepath.Join(pathDest, remainingPath, path)
+			newFile := filepath.Join(pathSource, remainingPath, path)
 			fs.CopyFile(ctx, filepath.Join(rootPath, path), newFile)
 
 		}
@@ -488,9 +484,18 @@ func (fs *Filesystem) Cat(path string) {
 
 func (fs *Filesystem) Testing(path string) {
 
-	fs.MFS.List()
-	//fsFind, _ := fs.searchFS(path)
-	//fmt.Println(fsFind.rootPath)
+	//fs.MFS.List()
+	var remainingPathDest string
+	splitPaths := strings.Split(path, "/")
+	if len(splitPaths) == 1 {
+		remainingPathDest = "."
+	}
+	splitPaths = splitPaths[:len(splitPaths)-1]
+	remainingPathDest = filepath.Join(splitPaths...)
+	_, err := fs.verifyPath(remainingPathDest)
+	if err != nil {
+		fmt.Println(err)
+	}
 }
 
 // SaveState aves the state of the VFS at this time.

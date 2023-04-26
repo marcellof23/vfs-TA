@@ -9,6 +9,9 @@ import (
 	"net/http"
 
 	"github.com/chzyer/readline"
+
+	"github.com/marcellof23/vfs-TA/boot"
+	"github.com/marcellof23/vfs-TA/constant"
 )
 
 type Credentials struct {
@@ -47,7 +50,7 @@ func authLoop() string {
 	return input
 }
 
-func register() (string, string) {
+func register(dep *boot.Dependencies) (string, string) {
 	var username, token string
 	line, err := readline.New(">")
 	if err != nil {
@@ -70,8 +73,9 @@ func register() (string, string) {
 		values := Credentials{Username: uname, Password: pass}
 		jsonValue, _ := json.Marshal(values)
 
+		registerURL := constant.Protocol + dep.Config().Server.Addr + constant.ApiVer + "/user/sign-up"
 		resp, err = http.Post(
-			"http://localhost:8080/api/v1/user/sign-up",
+			registerURL,
 			"application/json",
 			bytes.NewBuffer(jsonValue))
 		if resp.StatusCode != http.StatusOK {
@@ -97,7 +101,7 @@ func register() (string, string) {
 }
 
 // login gets a custom Username from the current User.
-func login() (string, string) {
+func login(dep *boot.Dependencies) (string, string) {
 	var username, token string
 	line, err := readline.New(">")
 	if err != nil {
@@ -120,11 +124,12 @@ func login() (string, string) {
 		values := Credentials{Username: uname, Password: pass}
 		jsonValue, _ := json.Marshal(values)
 
+		loginURL := constant.Protocol + dep.Config().Server.Addr + constant.ApiVer + "/user/login"
 		resp, err = http.Post(
-			"http://localhost:8080/api/v1/user/login",
+			loginURL,
 			"application/json",
 			bytes.NewBuffer(jsonValue))
-		if resp.StatusCode != http.StatusOK {
+		if err != nil || resp.StatusCode != http.StatusOK {
 			fmt.Println("Username or password is invalid")
 			continue
 		}
@@ -147,13 +152,13 @@ func login() (string, string) {
 }
 
 // initUser initializes the User object on startup.
-func InitUser() *User {
+func InitUser(dep *boot.Dependencies) *User {
 	var username, token string
 	command := authLoop()
 	if command == "register" {
-		username, token = register()
+		username, token = register(dep)
 	} else if command == "login" {
-		username, token = login()
+		username, token = login(dep)
 	}
 
 	currentUser := createUser(username, token)
