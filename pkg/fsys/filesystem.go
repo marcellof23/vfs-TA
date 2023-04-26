@@ -84,7 +84,7 @@ func (fs *Filesystem) UploadFile(ctx context.Context, sourcePath, destPath strin
 
 	token, err := GetTokenFromContext(ctx)
 	if err != nil {
-		fmt.Println(err)
+		return err
 	}
 
 	msg := producer.Message{
@@ -200,7 +200,7 @@ func (fs *Filesystem) MkDir(ctx context.Context, dirName string) error {
 
 			token, err := GetTokenFromContext(ctx)
 			if err != nil {
-				fmt.Println(err)
+				return err
 			}
 
 			msg := producer.Message{
@@ -247,7 +247,7 @@ func (fs *Filesystem) RemoveFile(ctx context.Context, filename string) error {
 
 	token, err := GetTokenFromContext(ctx)
 	if err != nil {
-		fmt.Println(err)
+		return err
 	}
 
 	msg := producer.Message{
@@ -314,7 +314,7 @@ func (fs *Filesystem) CopyFile(ctx context.Context, pathSource, pathDest string)
 	if len(splitPaths) > 1 {
 		_, err := fs.verifyPath(remainingPathDest)
 		if err != nil {
-			fmt.Println(err)
+			return err
 		}
 	}
 
@@ -377,11 +377,6 @@ func (fs *Filesystem) CopyDir(ctx context.Context, pathSource, pathDest string) 
 		return errors.New("file or Directory does not exist")
 	}
 
-	isFolderExists := fsDest.rootPath == filepath.Base(pathDest)
-	if !isFolderExists {
-		fsDest.MkDir(ctx, pathSource)
-	}
-
 	walkFn := func(rootPath, path string, _ *Filesystem, err error) error {
 		if path == "" {
 			return nil
@@ -391,14 +386,14 @@ func (fs *Filesystem) CopyDir(ctx context.Context, pathSource, pathDest string) 
 			splitPaths = splitPaths[1:]
 			remainingPath := filepath.Join(splitPaths...)
 
-			newDir := filepath.Join(pathSource, remainingPath)
+			newDir := filepath.Join(pathDest, remainingPath)
 			fsDest.MkDir(ctx, newDir)
 		} else {
 			splitPaths := strings.Split(rootPath, "/")
 			splitPaths = splitPaths[1:]
 			remainingPath := filepath.Join(splitPaths...)
 
-			newFile := filepath.Join(pathSource, remainingPath, path)
+			newFile := filepath.Join(pathDest, remainingPath, path)
 			fs.CopyFile(ctx, filepath.Join(rootPath, path), newFile)
 
 		}
@@ -407,7 +402,7 @@ func (fs *Filesystem) CopyDir(ctx context.Context, pathSource, pathDest string) 
 
 	err = walkDir(fsSource, pathSource, walkFn)
 	if err != nil {
-		fmt.Print(err)
+		return err
 	}
 
 	return nil
