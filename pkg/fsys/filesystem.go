@@ -223,7 +223,7 @@ func (fs *Filesystem) RemoveFile(ctx context.Context, filename string) error {
 	absFilename := fs.absPath(filename)
 
 	info, err := fs.Stat(filename)
-	_, err2 := fs.MFS.Stat(filename)
+	_, err2 := fs.MFS.Stat(absFilename)
 	if err != nil && err2 != nil {
 		return errors.New("file or Directory does not exist")
 	}
@@ -237,12 +237,13 @@ func (fs *Filesystem) RemoveFile(ctx context.Context, filename string) error {
 		return err
 	}
 
+	baseFilename := filepath.Base(filename)
 	fsTarget, err := fs.searchFS2(absFilename)
 	if err != nil {
 		errs := fmt.Sprintf("rm : cannot remove '%s': path not found", filename)
 		return errors.New(errs)
 	}
-	delete(fsTarget.files, filename)
+	delete(fsTarget.files, baseFilename)
 
 	token, err := GetTokenFromContext(ctx)
 	if err != nil {
@@ -264,26 +265,23 @@ func (fs *Filesystem) RemoveFile(ctx context.Context, filename string) error {
 }
 
 // RemoveDir removes a directory from the virtual Filesystem.
-func (fs *Filesystem) RemoveDir(ctx context.Context, path string) error {
-	path = fs.absPath(path)
+func (fs *Filesystem) RemoveDir(ctx context.Context, dirname string) error {
+	fsTarget, _ := fs.searchFS(dirname)
+	dirname = fs.absPath(dirname)
 
 	walkFn := func(rootpath, path string, fss *Filesystem, err error) error {
-		_, err = fs.verifyPath(filepath.Join(rootpath, path))
-		if err != nil {
-			delete(fss.directories, path)
-		} else {
-			fs.RemoveFile(ctx, filepath.Join(rootpath, path))
-		}
+		fs.RemoveFile(ctx, filepath.Join(rootpath, path))
 		return nil
 	}
 
-	err := walkDir(fs.directories[path], path, walkFn)
+	err := walkDir(fsTarget, dirname, walkFn)
 	if err != nil {
 		return err
 	}
-	delete(fs.directories, path)
+	baseDirName := filepath.Base(dirname)
+	delete(fsTarget.prev.directories, baseDirName)
 
-	err = fs.MFS.RemoveAll(path)
+	err = fs.MFS.RemoveAll(dirname)
 	if err != nil {
 		return err
 	}
@@ -296,7 +294,7 @@ func (fs *Filesystem) RemoveDir(ctx context.Context, path string) error {
 	msg := producer.Message{
 		Command:       "rm -r",
 		Token:         token,
-		AbsPathSource: path,
+		AbsPathSource: dirname,
 		AbsPathDest:   "",
 		Buffer:        []byte{},
 	}
