@@ -87,7 +87,7 @@ func (fs *Filesystem) Execute(ctx context.Context, comms []string) bool {
 	case "ls":
 		fs.ListDir()
 	case "cat":
-		fs.Cat(comms[1])
+		err = fs.Cat(comms[1])
 	case "stat":
 		stat, errs := fs.Stat(comms[1])
 		if err == nil {

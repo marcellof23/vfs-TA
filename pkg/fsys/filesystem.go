@@ -221,8 +221,10 @@ func (fs *Filesystem) MkDir(ctx context.Context, dirName string) error {
 // RemoveFile removes a File from the virtual Filesystem.
 func (fs *Filesystem) RemoveFile(ctx context.Context, filename string) error {
 	absFilename := fs.absPath(filename)
+
 	info, err := fs.Stat(filename)
-	if err != nil {
+	_, err2 := fs.MFS.Stat(filename)
+	if err != nil && err2 != nil {
 		return errors.New("file or Directory does not exist")
 	}
 
@@ -248,7 +250,7 @@ func (fs *Filesystem) RemoveFile(ctx context.Context, filename string) error {
 	}
 
 	msg := producer.Message{
-		Command:       fmt.Sprintf("rm"),
+		Command:       "rm",
 		Token:         token,
 		AbsPathSource: absFilename,
 		AbsPathDest:   "",
@@ -264,25 +266,31 @@ func (fs *Filesystem) RemoveFile(ctx context.Context, filename string) error {
 // RemoveDir removes a directory from the virtual Filesystem.
 func (fs *Filesystem) RemoveDir(ctx context.Context, path string) error {
 	path = fs.absPath(path)
-	err := fs.MFS.RemoveAll(path)
+
+	walkFn := func(rootpath, path string, fss *Filesystem, err error) error {
+		_, err = fs.verifyPath(filepath.Join(rootpath, path))
+		if err != nil {
+			delete(fss.directories, path)
+		} else {
+			fs.RemoveFile(ctx, filepath.Join(rootpath, path))
+		}
+		return nil
+	}
+
+	err := walkDir(fs.directories[path], path, walkFn)
+	if err != nil {
+		return err
+	}
+	delete(fs.directories, path)
+
+	err = fs.MFS.RemoveAll(path)
 	if err != nil {
 		return err
 	}
 
-	walkFn := func(rootpath, path string, fs *Filesystem, err error) error {
-		delete(fs.directories, path)
-		return nil
-	}
-
-	err = walkDir(fs.directories[path], path, walkFn)
-	if err != nil {
-		fmt.Print(err)
-	}
-	delete(fs.directories, path)
-
 	token, err := GetTokenFromContext(ctx)
 	if err != nil {
-		fmt.Println(err)
+		return err
 	}
 
 	msg := producer.Message{
@@ -340,7 +348,7 @@ func (fs *Filesystem) CopyFile(ctx context.Context, pathSource, pathDest string)
 
 	token, err := GetTokenFromContext(ctx)
 	if err != nil {
-		fmt.Println(err)
+		return err
 	}
 
 	msg := producer.Message{
@@ -476,26 +484,31 @@ func (fs *Filesystem) Chmod(perm, name string) error {
 	return nil
 }
 
-func (fs *Filesystem) Cat(path string) {
+func (fs *Filesystem) Cat(path string) error {
 	path = fs.absPath(path)
-	data, _ := afero.ReadFile(fs.MFS, path)
+	data, err := afero.ReadFile(fs.MFS, path)
+	if err != nil {
+		return err
+	}
+
 	fmt.Println(string(data))
+	return nil
 }
 
 func (fs *Filesystem) Testing(path string) {
 
-	//fs.MFS.List()
-	var remainingPathDest string
-	splitPaths := strings.Split(path, "/")
-	if len(splitPaths) == 1 {
-		remainingPathDest = "."
-	}
-	splitPaths = splitPaths[:len(splitPaths)-1]
-	remainingPathDest = filepath.Join(splitPaths...)
-	_, err := fs.verifyPath(remainingPathDest)
-	if err != nil {
-		fmt.Println(err)
-	}
+	fs.MFS.List()
+	//var remainingPathDest string
+	//splitPaths := strings.Split(path, "/")
+	//if len(splitPaths) == 1 {
+	//	remainingPathDest = "."
+	//}
+	//splitPaths = splitPaths[:len(splitPaths)-1]
+	//remainingPathDest = filepath.Join(splitPaths...)
+	//_, err := fs.verifyPath(remainingPathDest)
+	//if err != nil {
+	//	fmt.Println(err)
+	//}
 }
 
 // SaveState aves the state of the VFS at this time.
