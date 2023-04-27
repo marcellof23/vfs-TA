@@ -16,6 +16,7 @@ import (
 func shellLoop(ctx context.Context, currentUser *user.User) {
 	var shellFlag bool
 
+	LoadFilesystem()
 	Fsys := fsys.New()
 	prompt := currentUser.InitPrompt()
 	shells := fsys.InitShell(Fsys)
