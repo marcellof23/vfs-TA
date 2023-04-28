@@ -53,10 +53,10 @@ func copyFilesystem(ctx context.Context, dirName, replicatePath, targetPath stri
 					rootPath: strings.ReplaceAll(dirName, "//", "/") + "/" + fileName.Name(),
 				}
 				fname := fs.files[fileName.Name()].rootPath
-				memfile, _ := fs.MFS.Create(filepath.Join(targetPath, fname))
+				memfile, _ := fs.MFS.Create(filepath.ToSlash(filepath.Join(targetPath, fname)))
 				memfile.Truncate(fi.Size())
 				memfile.Write(dat)
-				fs.MFS.Chmod(filepath.Clean(fname), mode.Perm())
+				fs.MFS.Chmod(filepath.ToSlash(filepath.Clean(fname)), mode.Perm())
 
 				token, err := GetTokenFromContext(ctx)
 				if err != nil {
@@ -103,7 +103,7 @@ func replicateFilesystem(dirName, replicatePath string, fs *Filesystem) *Filesys
 			if fileName.Name() != "vendor" && fileName.Name() != ".git" {
 				dirname := fileName.Name()
 				fs.directories[dirname] = makeFilesystem(dirname, strings.ReplaceAll(dirName, "//", "/")+"/"+fileName.Name(), fs, fs.MemFilesystem)
-				fs.MFS.Mkdir(filepath.Join(fs.rootPath, dirname), mode.Perm())
+				fs.MFS.Mkdir(filepath.ToSlash(filepath.Join(fs.rootPath, dirname)), mode.Perm())
 				replicateFilesystem(dirName+"/"+fileName.Name(), replicatePath+"/"+fileName.Name(), fs.directories[fileName.Name()])
 			}
 		} else {
@@ -116,7 +116,7 @@ func replicateFilesystem(dirName, replicatePath string, fs *Filesystem) *Filesys
 				memfile, _ := fs.MFS.Create(fname)
 				memfile.Truncate(fi.Size())
 				memfile.Write(dat)
-				fs.MFS.Chmod(filepath.Clean(fname), mode)
+				fs.MFS.Chmod(filepath.ToSlash(filepath.Clean(fname)), mode)
 			}
 		}
 		index++

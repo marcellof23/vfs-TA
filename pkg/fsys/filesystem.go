@@ -57,7 +57,7 @@ func (fs *Filesystem) Pwd() {
 
 // Stat gracefully ends the current session.
 func (fs *Filesystem) Stat(filename string) (os.FileInfo, error) {
-	path := filepath.Join(fs.rootPath, filename)
+	path := filepath.ToSlash(filepath.Join(fs.rootPath, filename))
 	info, err := fs.MFS.Stat(path)
 	if err != nil {
 		return nil, errors.New("file or Directory not found")
@@ -182,14 +182,14 @@ func (fs *Filesystem) MkDir(ctx context.Context, dirName string) error {
 				return fmt.Errorf("mkdir : directory %s already exists", segment)
 			}
 		} else if !dirExist {
-			err := fs.MFS.MkdirAll(filepath.Join(currFs.rootPath, segment), 0o700)
+			err := fs.MFS.MkdirAll(filepath.ToSlash(filepath.Join(currFs.rootPath, segment)), 0o700)
 			if err != nil {
 				return err
 			}
 
 			newDir := &fileDir{
 				name:        segment,
-				rootPath:    filepath.Join(currFs.rootPath, segment),
+				rootPath:    filepath.ToSlash(filepath.Join(currFs.rootPath, segment)),
 				files:       make(map[string]*file),
 				directories: make(map[string]*Filesystem),
 				prev:        currFs,
@@ -270,7 +270,7 @@ func (fs *Filesystem) RemoveDir(ctx context.Context, dirname string) error {
 	dirname = fs.absPath(dirname)
 
 	walkFn := func(rootpath, path string, fss *Filesystem, err error) error {
-		fs.RemoveFile(ctx, filepath.Join(rootpath, path))
+		fs.RemoveFile(ctx, filepath.ToSlash(filepath.Join(rootpath, path)))
 		return nil
 	}
 
@@ -310,7 +310,7 @@ func (fs *Filesystem) CopyFile(ctx context.Context, pathSource, pathDest string)
 	var remainingPathDest string
 	splitPaths := strings.Split(pathDest, "/")
 	splitPaths = splitPaths[:len(splitPaths)-1]
-	remainingPathDest = filepath.Join(splitPaths...)
+	remainingPathDest = filepath.ToSlash(filepath.Join(splitPaths...))
 	if len(splitPaths) > 1 {
 		_, err := fs.verifyPath(remainingPathDest)
 		if err != nil {
@@ -384,17 +384,17 @@ func (fs *Filesystem) CopyDir(ctx context.Context, pathSource, pathDest string) 
 		if isDir, _ := fs.isDir(path); isDir {
 			splitPaths := strings.Split(path, "/")
 			splitPaths = splitPaths[1:]
-			remainingPath := filepath.Join(splitPaths...)
+			remainingPath := filepath.ToSlash(filepath.Join(splitPaths...))
 
-			newDir := filepath.Join(pathDest, remainingPath)
+			newDir := filepath.ToSlash(filepath.Join(pathDest, remainingPath))
 			fsDest.MkDir(ctx, newDir)
 		} else {
 			splitPaths := strings.Split(rootPath, "/")
 			splitPaths = splitPaths[1:]
 			remainingPath := filepath.Join(splitPaths...)
 
-			newFile := filepath.Join(pathDest, remainingPath, path)
-			fs.CopyFile(ctx, filepath.Join(rootPath, path), newFile)
+			newFile := filepath.ToSlash(filepath.Join(pathDest, remainingPath, path))
+			fs.CopyFile(ctx, filepath.ToSlash(filepath.Join(rootPath, path)), newFile)
 
 		}
 		return nil

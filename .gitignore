@@ -1,5 +1,16 @@
 tmp
-vendor
+cmd/tmp
+!vendor/
+
+vendor/*
+!vendor/github.com/
+
+vendor/github.com/*
+!vendor/github.com/spf13/
+
+vendor/github.com/spf13/*
+!vendor/github.com/spf13/afero/
+
 .idea
 error-log
 output
