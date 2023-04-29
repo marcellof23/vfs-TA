@@ -307,25 +307,9 @@ func (fs *Filesystem) RemoveDir(ctx context.Context, dirname string) error {
 
 // CopyFile copy a file from source to destination on the virtual Filesystem.
 func (fs *Filesystem) CopyFile(ctx context.Context, pathSource, pathDest string) error {
-	var remainingPathDest string
-	splitPaths := strings.Split(pathDest, "/")
-	splitPaths = splitPaths[:len(splitPaths)-1]
-	remainingPathDest = filepath.ToSlash(filepath.Join(splitPaths...))
-	if len(splitPaths) > 1 {
-		_, err := fs.verifyPath(remainingPathDest)
-		if err != nil {
-			return err
-		}
-	}
-
 	flSource, err := fs.Stat(pathSource)
 	if err != nil {
 		return errors.New("cp: file or Directory source does not exist")
-	}
-
-	_, err = fs.Stat(pathDest)
-	if err == nil {
-		return fmt.Errorf("cp: file or Directory destination with name %s is already exist", filepath.Base(pathDest))
 	}
 
 	if flSource.IsDir() {
@@ -371,12 +355,6 @@ func (fs *Filesystem) CopyDir(ctx context.Context, pathSource, pathDest string) 
 	pathSource = filepath.Base(pathSource)
 	pathDest = filepath.Base(pathDest)
 
-	_, err := fs.Stat(pathSource)
-	if err != nil {
-		fmt.Println("cp: ", err)
-		return errors.New("file or Directory does not exist")
-	}
-
 	walkFn := func(rootPath, path string, _ *Filesystem, err error) error {
 		if path == "" {
 			return nil
@@ -400,7 +378,7 @@ func (fs *Filesystem) CopyDir(ctx context.Context, pathSource, pathDest string) 
 		return nil
 	}
 
-	err = walkDir(fsSource, pathSource, walkFn)
+	err := walkDir(fsSource, pathSource, walkFn)
 	if err != nil {
 		return err
 	}
@@ -458,7 +436,8 @@ func (fs *Filesystem) ListDir() {
 	}
 }
 
-func (fs *Filesystem) Chmod(perm, name string) error {
+func (fs *Filesystem) Chmod(ctx context.Context, perm, name string) error {
+	absName := fs.absPath(name)
 	fs, err := fs.verifyPath(name)
 	if err != nil {
 		return errors.New("chmod: " + err.Error())
@@ -473,6 +452,23 @@ func (fs *Filesystem) Chmod(perm, name string) error {
 	if err != nil {
 		return errors.New("chmod: " + err.Error())
 	}
+
+	token, err := GetTokenFromContext(ctx)
+	if err != nil {
+		return err
+	}
+
+	msg := producer.Message{
+		Command:       "chmod",
+		Token:         token,
+		AbsPathSource: absName,
+		FileMode:      mode,
+		AbsPathDest:   "",
+		Buffer:        []byte{},
+	}
+
+	r := producer.Retry(producer.ProduceCommand, 3e9)
+	go r(ctx, msg)
 
 	return nil
 }
@@ -490,18 +486,11 @@ func (fs *Filesystem) Cat(path string) error {
 
 func (fs *Filesystem) Testing(path string) {
 
-	fs.MFS.List()
-	//var remainingPathDest string
-	//splitPaths := strings.Split(path, "/")
-	//if len(splitPaths) == 1 {
-	//	remainingPathDest = "."
-	//}
-	//splitPaths = splitPaths[:len(splitPaths)-1]
-	//remainingPathDest = filepath.Join(splitPaths...)
-	//_, err := fs.verifyPath(remainingPathDest)
-	//if err != nil {
-	//	fmt.Println(err)
-	//}
+	if path == "hehe" {
+		fs.MFS.List()
+	}
+
+	fmt.Println(fs.getAccess(path, "Normal"))
 }
 
 // SaveState aves the state of the VFS at this time.

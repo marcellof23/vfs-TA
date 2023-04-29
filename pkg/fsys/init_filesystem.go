@@ -40,40 +40,35 @@ func copyFilesystem(ctx context.Context, dirName, replicatePath, targetPath stri
 		dat, _ := os.ReadFile(replicatePath + "/" + fileName.Name())
 		mode := fi.Mode()
 		if mode.IsDir() {
-			if fileName.Name() != "vendor" && fileName.Name() != ".git" {
-				dirname := fileName.Name()
-				fs.MkDir(ctx, dirname)
-				copyFilesystem(ctx, dirName+"/"+fileName.Name(), replicatePath+"/"+fileName.Name(), targetPath, fs.directories[fileName.Name()])
-			}
-
+			dirname := fileName.Name()
+			fs.MkDir(ctx, dirname)
+			copyFilesystem(ctx, dirName+"/"+fileName.Name(), replicatePath+"/"+fileName.Name(), targetPath, fs.directories[fileName.Name()])
 		} else {
-			if fileName.Name() != "vendor" && fileName.Name() != ".git" {
-				fs.files[fileName.Name()] = &file{
-					name:     fileName.Name(),
-					rootPath: strings.ReplaceAll(dirName, "//", "/") + "/" + fileName.Name(),
-				}
-				fname := fs.files[fileName.Name()].rootPath
-				memfile, _ := fs.MFS.Create(filepath.ToSlash(filepath.Join(targetPath, fname)))
-				memfile.Truncate(fi.Size())
-				memfile.Write(dat)
-				fs.MFS.Chmod(filepath.ToSlash(filepath.Clean(fname)), mode.Perm())
-
-				token, err := GetTokenFromContext(ctx)
-				if err != nil {
-					fmt.Println(err)
-				}
-
-				msg := producer.Message{
-					Command:       "upload",
-					Token:         token,
-					AbsPathSource: fname,
-					AbsPathDest:   targetPath,
-					Buffer:        dat,
-				}
-
-				r := producer.Retry(producer.ProduceCommand, 3e9)
-				go r(ctx, msg)
+			fs.files[fileName.Name()] = &file{
+				name:     fileName.Name(),
+				rootPath: strings.ReplaceAll(dirName, "//", "/") + "/" + fileName.Name(),
 			}
+			fname := fs.files[fileName.Name()].rootPath
+			memfile, _ := fs.MFS.Create(filepath.ToSlash(filepath.Join(targetPath, fname)))
+			memfile.Truncate(fi.Size())
+			memfile.Write(dat)
+			fs.MFS.Chmod(filepath.ToSlash(filepath.Clean(fname)), mode.Perm())
+
+			token, err := GetTokenFromContext(ctx)
+			if err != nil {
+				fmt.Println(err)
+			}
+
+			msg := producer.Message{
+				Command:       "upload",
+				Token:         token,
+				AbsPathSource: fname,
+				AbsPathDest:   targetPath,
+				Buffer:        dat,
+			}
+
+			r := producer.Retry(producer.ProduceCommand, 3e9)
+			go r(ctx, msg)
 		}
 
 		index++
@@ -100,24 +95,21 @@ func replicateFilesystem(dirName, replicatePath string, fs *Filesystem) *Filesys
 		dat, _ := os.ReadFile(replicatePath + "/" + fileName.Name())
 		mode := fi.Mode()
 		if mode.IsDir() {
-			if fileName.Name() != "vendor" && fileName.Name() != ".git" {
-				dirname := fileName.Name()
-				fs.directories[dirname] = makeFilesystem(dirname, strings.ReplaceAll(dirName, "//", "/")+"/"+fileName.Name(), fs, fs.MemFilesystem)
-				fs.MFS.Mkdir(filepath.ToSlash(filepath.Join(fs.rootPath, dirname)), mode.Perm())
-				replicateFilesystem(dirName+"/"+fileName.Name(), replicatePath+"/"+fileName.Name(), fs.directories[fileName.Name()])
-			}
+			dirname := fileName.Name()
+			fs.directories[dirname] = makeFilesystem(dirname, strings.ReplaceAll(dirName, "//", "/")+"/"+fileName.Name(), fs, fs.MemFilesystem)
+			fs.MFS.Mkdir(filepath.ToSlash(filepath.Join(fs.rootPath, dirname)), mode.Perm())
+			replicateFilesystem(dirName+"/"+fileName.Name(), replicatePath+"/"+fileName.Name(), fs.directories[fileName.Name()])
 		} else {
-			if fileName.Name() != "vendor" && fileName.Name() != ".git" {
-				fs.files[fileName.Name()] = &file{
-					name:     fileName.Name(),
-					rootPath: strings.ReplaceAll(dirName, "//", "/") + "/" + fileName.Name(),
-				}
-				fname := fs.files[fileName.Name()].rootPath
-				memfile, _ := fs.MFS.Create(fname)
-				memfile.Truncate(fi.Size())
-				memfile.Write(dat)
-				fs.MFS.Chmod(filepath.ToSlash(filepath.Clean(fname)), mode)
+			fs.files[fileName.Name()] = &file{
+				name:     fileName.Name(),
+				rootPath: strings.ReplaceAll(dirName, "//", "/") + "/" + fileName.Name(),
 			}
+			fname := fs.files[fileName.Name()].rootPath
+			memfile, _ := fs.MFS.Create(fname)
+			memfile.Truncate(fi.Size())
+			memfile.Write(dat)
+			fs.MFS.Chmod(filepath.ToSlash(filepath.Clean(fname)), mode)
+
 		}
 		index++
 	}

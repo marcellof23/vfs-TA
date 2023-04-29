@@ -19,9 +19,16 @@ type Credentials struct {
 	Password string `json:"password"`
 }
 
+type UserState struct {
+	Username string `json:"username"`
+	Role     string `json:"token"'`
+	Token    string `json:"token"'`
+}
+
 type UserResp struct {
 	Data struct {
 		Username string `json:"username"`
+		Role     string `json:"role"`
 	} `json:"data"`
 	Token string `json:"token"`
 }
@@ -50,12 +57,12 @@ func authLoop() string {
 	return input
 }
 
-func register(dep *boot.Dependencies) (string, string) {
-	var username, token string
+func register(dep *boot.Dependencies) UserState {
 	line, err := readline.New(">")
 	if err != nil {
 		log.Fatal(err)
 	}
+	var userState UserState
 
 	var resp *http.Response
 	for {
@@ -92,17 +99,20 @@ func register(dep *boot.Dependencies) (string, string) {
 			continue
 		}
 
-		username = post.Data.Username
-		token = post.Token
+		userState = UserState{
+			Username: post.Data.Username,
+			Role:     post.Data.Role,
+			Token:    post.Token,
+		}
 		break
 	}
 	defer resp.Body.Close()
-	return username, token
+	return userState
 }
 
 // login gets a custom Username from the current User.
-func login(dep *boot.Dependencies) (string, string) {
-	var username, token string
+func login(dep *boot.Dependencies) UserState {
+	var userState UserState
 	line, err := readline.New(">")
 	if err != nil {
 		log.Fatal(err)
@@ -143,24 +153,27 @@ func login(dep *boot.Dependencies) (string, string) {
 			continue
 		}
 
-		username = post.Data.Username
-		token = post.Token
+		userState = UserState{
+			Username: post.Data.Username,
+			Role:     post.Data.Role,
+			Token:    post.Token,
+		}
 		break
 	}
 	defer resp.Body.Close()
-	return username, token
+	return userState
 }
 
 // initUser initializes the User object on startup.
 func InitUser(dep *boot.Dependencies) *User {
-	var username, token string
+	var userState UserState
 	command := authLoop()
 	if command == "register" {
-		username, token = register(dep)
+		userState = register(dep)
 	} else if command == "login" {
-		username, token = login(dep)
+		userState = login(dep)
 	}
 
-	currentUser := createUser(username, token)
+	currentUser := createUser(userState.Username, userState.Role, userState.Token)
 	return currentUser
 }

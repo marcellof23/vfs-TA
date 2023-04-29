@@ -9,22 +9,16 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/marcellof23/vfs-TA/boot"
+	"github.com/marcellof23/vfs-TA/constant"
 )
 
-func readZipFile(zf *zip.File) ([]byte, error) {
-	f, err := zf.Open()
-	if err != nil {
-		return nil, err
-	}
-	defer f.Close()
-	return io.ReadAll(f)
-}
-
-func LoadFilesystem() {
+func LoadFilesystem(dep *boot.Dependencies) {
 	dst := "output"
-	endpoint := "http://localhost:8080/api/v1/backup"
 
-	resp, err := http.Get(endpoint)
+	backupURL := constant.Protocol + dep.Config().Server.Addr + constant.ApiVer + "/backup"
+	resp, err := http.Get(backupURL)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -39,6 +33,7 @@ func LoadFilesystem() {
 	if err != nil {
 		log.Fatal(err)
 	}
+	defer os.Remove("backup.zip")
 
 	for _, f := range zipReader.File {
 		filePath := filepath.Join(dst, f.Name)

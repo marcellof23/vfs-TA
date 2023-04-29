@@ -54,13 +54,8 @@ func (fs *Filesystem) Usage(comms []string) bool {
 			fmt.Println(constant.UsageCommandCp)
 			return false
 		}
-	case "mv":
-		if len(comms) < 3 {
-			fmt.Println(constant.UsageCommandMv)
-			return false
-		}
 	case "chmod":
-		if len(comms) < 2 {
+		if len(comms) < 3 {
 			fmt.Println(constant.UsageCommandChmod)
 			return false
 		}
@@ -79,6 +74,13 @@ func (fs *Filesystem) Execute(ctx context.Context, comms []string) bool {
 	if fs.Usage(comms) == false {
 		return false
 	}
+
+	role, ok := ctx.Value("role").(string)
+	if !ok {
+		fmt.Println("User is not authorized!")
+		return false
+	}
+
 	switch comms[0] {
 	case "mkdir":
 		err = fs.MkDir(ctx, comms[1])
@@ -98,20 +100,18 @@ func (fs *Filesystem) Execute(ctx context.Context, comms []string) bool {
 		err = fs.Touch(ctx, comms[1])
 	case "rm":
 		if comms[1] == "-r" {
-			err = fs.RemoveDir(ctx, comms[2])
+			err = fs.FilesystemAccessAuth(role, true, comms[0], fs.RemoveDir, ctx, comms[2])
 		} else {
-			err = fs.RemoveFile(ctx, comms[1])
+			err = fs.FilesystemAccessAuth(role, false, comms[0], fs.RemoveDir, ctx, comms[1])
 		}
 	case "cp":
 		if comms[1] == "-r" {
-			err = fs.CopyDir(ctx, comms[2], comms[3])
+			err = fs.FilesystemAccessAuth(role, true, comms[0], fs.CopyDir, ctx, comms[2], comms[3])
 		} else {
-			err = fs.CopyFile(ctx, comms[1], comms[2])
+			err = fs.FilesystemAccessAuth(role, false, comms[0], fs.CopyFile, ctx, comms[1], comms[2])
 		}
-	case "mv":
-		fs.Move(ctx, comms[1], comms[2])
 	case "chmod":
-		fs.Chmod(comms[1], comms[2])
+		fs.Chmod(ctx, comms[1], comms[2])
 	case "upload":
 		if comms[1] == "-r" {
 			fs.UploadDir(ctx, comms[2], comms[3])

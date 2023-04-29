@@ -16,10 +16,10 @@ import (
 func shellLoop(ctx context.Context, currentUser *user.User) {
 	var shellFlag bool
 
-	LoadFilesystem()
 	Fsys := fsys.New()
 	prompt := currentUser.InitPrompt()
 	shells := fsys.InitShell(Fsys)
+	os.RemoveAll("output")
 
 	for {
 		input, _ := prompt.Readline()
@@ -76,8 +76,11 @@ func init() {
 			ctx := context.WithValue(context.Background(), "logger", logger)
 
 			currentUser := user.InitUser(dep)
-			ctx = context.WithValue(ctx, "token", currentUser.Token)
 			ctx = context.WithValue(ctx, "username", currentUser.Username)
+			ctx = context.WithValue(ctx, "role", currentUser.Role)
+			ctx = context.WithValue(ctx, "token", currentUser.Token)
+
+			LoadFilesystem(dep)
 
 			shellLoop(ctx, currentUser)
 		},

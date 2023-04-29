@@ -25,6 +25,7 @@ type Message struct {
 	AbsPathSource string
 	AbsPathDest   string
 	Token         string
+	FileMode      uint64
 	Buffer        []byte
 }
 
@@ -37,9 +38,9 @@ func Retry(effector Effector, delay time.Duration) Effector {
 			return fmt.Errorf("logger not initiated")
 		}
 
-		for {
+		for r := 0; ; r++ {
 			err := effector(ctx, msg)
-			if err == nil {
+			if err == nil || r >= 20 {
 				return err
 			}
 
@@ -55,26 +56,27 @@ func Retry(effector Effector, delay time.Duration) Effector {
 }
 
 func ProduceCommand(ctx context.Context, msg Message) error {
-	partition := 0
 
 	log, ok := ctx.Value("logger").(*log.Logger)
 	if !ok {
 		return fmt.Errorf("logger not initiated")
 	}
 
-	conn, err := kafka.DialLeader(ctx, network, brokerAddress, topic, partition)
-	if err != nil {
-		log.Println("failed to dial leader:", err)
-		return err
+	writer := kafka.Writer{
+		Addr:       kafka.TCP(brokerAddress),
+		BatchBytes: 1e9,
+		Topic:      topic,
 	}
 
 	var buff []byte
-	if buff, err = json.Marshal(msg); err != nil {
+	buff, err := json.Marshal(msg)
+	if err != nil {
 		log.Println("failed to marshal:", err)
 		return err
 	}
 
-	_, err = conn.WriteMessages(
+	err = writer.WriteMessages(
+		ctx,
 		kafka.Message{Value: buff},
 	)
 
@@ -85,7 +87,7 @@ func ProduceCommand(ctx context.Context, msg Message) error {
 		return err
 	}
 
-	if err := conn.Close(); err != nil {
+	if err := writer.Close(); err != nil {
 		log.Println("failed to close writer:", err)
 		return err
 	}

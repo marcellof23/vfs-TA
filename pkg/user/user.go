@@ -14,13 +14,15 @@ import (
 type User struct {
 	Username   string         // The User's onscreen name.
 	Token      string         // User token
+	Role       string         // User role
 	accessList map[string]int // A map containing the unique hashes and access rights for each file.
 }
 
 // createUser creates a User object.
-func createUser(username, token string) *User {
+func createUser(username, role, token string) *User {
 	return &User{
 		Username: username,
+		Role:     role,
 		Token:    token,
 	}
 }
