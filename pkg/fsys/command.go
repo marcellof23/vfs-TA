@@ -39,11 +39,6 @@ func (fs *Filesystem) Usage(comms []string) bool {
 			fmt.Println(constant.UsageCommandStat)
 			return false
 		}
-	case "touch":
-		if len(comms) < 2 {
-			fmt.Println(constant.UsageCommandTouch)
-			return false
-		}
 	case "rm":
 		if len(comms) < 2 {
 			fmt.Println(constant.UsageCommandRm)
@@ -60,6 +55,11 @@ func (fs *Filesystem) Usage(comms []string) bool {
 			return false
 		}
 	case "upload":
+		if len(comms) < 3 {
+			fmt.Println(constant.UsageCommandUpload)
+			return false
+		}
+	case "migrate":
 		if len(comms) < 3 {
 			fmt.Println(constant.UsageCommandUpload)
 			return false
@@ -83,7 +83,7 @@ func (fs *Filesystem) Execute(ctx context.Context, comms []string) bool {
 
 	switch comms[0] {
 	case "mkdir":
-		err = fs.MkDir(ctx, comms[1])
+		err = fs.FilesystemAccessAuth(role, false, comms[0], fs.MkDir, ctx, comms[1])
 	case "pwd":
 		fs.Pwd()
 	case "ls":
@@ -96,8 +96,6 @@ func (fs *Filesystem) Execute(ctx context.Context, comms []string) bool {
 			fs.PrintStat(stat, comms[1])
 		}
 		err = errs
-	case "touch":
-		err = fs.Touch(ctx, comms[1])
 	case "rm":
 		if comms[1] == "-r" {
 			err = fs.FilesystemAccessAuth(role, true, comms[0], fs.RemoveDir, ctx, comms[2])
@@ -111,13 +109,15 @@ func (fs *Filesystem) Execute(ctx context.Context, comms []string) bool {
 			err = fs.FilesystemAccessAuth(role, false, comms[0], fs.CopyFile, ctx, comms[1], comms[2])
 		}
 	case "chmod":
-		fs.Chmod(ctx, comms[1], comms[2])
+		err = fs.FilesystemAccessAuth(role, false, comms[0], fs.Chmod, ctx, comms[1], comms[2])
 	case "upload":
 		if comms[1] == "-r" {
-			fs.UploadDir(ctx, comms[2], comms[3])
+			err = fs.FilesystemAccessAuth(role, true, comms[0], fs.UploadDir, ctx, comms[2], comms[3])
 		} else {
-			fs.UploadFile(ctx, comms[1], comms[2])
+			err = fs.FilesystemAccessAuth(role, false, comms[0], fs.UploadFile, ctx, comms[1], comms[2])
 		}
+	case "migrate":
+		err = fs.FilesystemAccessAuth(role, false, comms[0], fs.Migrate, ctx, comms[1], comms[2])
 	case "test":
 		fs.Testing(comms[1])
 	case "exit":
@@ -147,12 +147,22 @@ func (s *Shell) Usage(comms []string) bool {
 }
 
 func (s *Shell) Execute(ctx context.Context, comms []string) bool {
+	role, ok := ctx.Value("role").(string)
+	if !ok {
+		fmt.Println("User is not authorized!")
+		return false
+	}
+
 	if s.Usage(comms) == false {
 		return true
 	}
 	switch comms[0] {
 	case "cd":
-		s.ChDir(comms[1])
+		err := s.Fs.FilesystemAccessAuth(role, false, comms[0], s.ChDir, ctx, comms[1])
+		if err != nil {
+			fmt.Println(err.Error())
+		}
+		//s.ChDir(ctx, comms[1])
 	case "clear":
 		s.ClearScreen()
 	default:

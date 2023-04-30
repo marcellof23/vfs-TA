@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"path/filepath"
 	"strings"
+
+	"github.com/marcellof23/vfs-TA/constant"
 )
 
 func (fs *Filesystem) CheckCPPath(pathSource, pathDest string) error {
@@ -20,12 +22,12 @@ func (fs *Filesystem) CheckCPPath(pathSource, pathDest string) error {
 
 	_, err := fs.Stat(pathSource)
 	if err != nil {
-		return fmt.Errorf("cannot stat %s: %s", pathSource, ErrPathNotFound.Error())
+		return fmt.Errorf("%s: %s", err.Error(), constant.ErrPathNotFound.Error())
 	}
 
 	_, err = fs.Stat(pathDest)
 	if err == nil {
-		return fmt.Errorf("cp: file or Directory destination with name %s is already exist", filepath.Base(pathDest))
+		return fmt.Errorf("%s: %s", err.Error(), constant.ErrPathNotFound.Error())
 	}
 
 	return nil
@@ -34,12 +36,12 @@ func (fs *Filesystem) CheckCPPath(pathSource, pathDest string) error {
 func (fs *Filesystem) CheckCPRecPath(pathSource, pathDest string) error {
 	_, err := fs.Stat(pathSource)
 	if err != nil {
-		return fmt.Errorf("cannot stat %s: %s", pathSource, ErrPathNotFound.Error())
+		return fmt.Errorf("%s: %s", err.Error(), constant.ErrPathNotFound.Error())
 	}
 
 	_, err = fs.searchFS(pathDest)
 	if err != nil {
-		return fmt.Errorf("cannot stat %s: %s", pathDest, ErrPathNotFound.Error())
+		return fmt.Errorf("%s: %s", err.Error(), constant.ErrPathNotFound.Error())
 	}
 
 	return nil

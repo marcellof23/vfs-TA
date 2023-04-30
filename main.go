@@ -77,7 +77,7 @@ func main() {
 	// Create a new MemMapFs filesystem
 	fs := afero.NewMemMapFs()
 
-	err := fs.MkdirAll("/a/b/c", 0o500)
+	err := fs.MkdirAll("/a/b/c", 0o777)
 	if err != nil {
 		fmt.Println(err)
 	}

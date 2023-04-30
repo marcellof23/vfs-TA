@@ -1,0 +1,482 @@
+2023-04-30 13:34:47: mkdir n 
+2023-04-30 13:34:47: error: failed to write messages: [3] Unknown Topic Or Partition: the request is for a topic or partition that does not exist on this broker
+2023-04-30 13:34:47: Function call failed, retrying in 3s
+2023-04-30 13:34:47: mkdir n/vfs/tmp/main 
+2023-04-30 13:34:47: error: failed to write messages: [3] Unknown Topic Or Partition: the request is for a topic or partition that does not exist on this broker
+2023-04-30 13:34:47: Function call failed, retrying in 3s
+2023-04-30 13:34:47: mkdir n/vfs/tmp 
+2023-04-30 13:34:47: error: failed to write messages: [3] Unknown Topic Or Partition: the request is for a topic or partition that does not exist on this broker
+2023-04-30 13:34:47: Function call failed, retrying in 3s
+2023-04-30 13:34:47: upload ./vfs/main.go n
+2023-04-30 13:34:47: error: failed to write messages: [3] Unknown Topic Or Partition: the request is for a topic or partition that does not exist on this broker
+2023-04-30 13:34:47: Function call failed, retrying in 3s
+2023-04-30 13:34:47: upload ./main.go n
+2023-04-30 13:34:47: error: failed to write messages: [3] Unknown Topic Or Partition: the request is for a topic or partition that does not exist on this broker
+2023-04-30 13:34:47: Function call failed, retrying in 3s
+2023-04-30 13:34:47: upload ./root.go n
+2023-04-30 13:34:47: upload ./load_filesystem.go n
+2023-04-30 13:34:47: error: failed to write messages: [3] Unknown Topic Or Partition: the request is for a topic or partition that does not exist on this broker
+2023-04-30 13:34:47: error: failed to write messages: [3] Unknown Topic Or Partition: the request is for a topic or partition that does not exist on this broker
+2023-04-30 13:34:47: mkdir n/vfs 
+2023-04-30 13:34:47: error: failed to write messages: [3] Unknown Topic Or Partition: the request is for a topic or partition that does not exist on this broker
+2023-04-30 13:34:47: Function call failed, retrying in 3s
+2023-04-30 13:34:47: Function call failed, retrying in 3s
+2023-04-30 13:34:47: Function call failed, retrying in 3s
+2023-04-30 13:34:47: upload ./vfs/tmp/main/dev n
+2023-04-30 13:34:47: error: failed to write messages: [3] Unknown Topic Or Partition: the request is for a topic or partition that does not exist on this broker
+2023-04-30 13:34:47: Function call failed, retrying in 3s
+2023-04-30 13:34:47: mkdir n/vfs/tmp/main 
+2023-04-30 13:34:47: mkdir n/vfs/tmp 
+2023-04-30 13:34:47: error: failed to write messages: [3] Unknown Topic Or Partition: the request is for a topic or partition that does not exist on this broker
+2023-04-30 13:34:47: upload ./root.go n
+2023-04-30 13:34:47: mkdir n/vfs 
+2023-04-30 13:34:47: error: failed to write messages: [3] Unknown Topic Or Partition: the request is for a topic or partition that does not exist on this broker
+2023-04-30 13:34:47: Function call failed, retrying in 3s
+2023-04-30 13:34:47: Function call failed, retrying in 3s
+2023-04-30 13:34:47: error: failed to write messages: [3] Unknown Topic Or Partition: the request is for a topic or partition that does not exist on this broker
+2023-04-30 13:34:47: Function call failed, retrying in 3s
+2023-04-30 13:34:47: mkdir n 
+2023-04-30 13:34:47: error: failed to write messages: [3] Unknown Topic Or Partition: the request is for a topic or partition that does not exist on this broker
+2023-04-30 13:34:47: Function call failed, retrying in 3s
+2023-04-30 13:34:47: upload ./vfs/main.go n
+2023-04-30 13:34:47: error: failed to write messages: [3] Unknown Topic Or Partition: the request is for a topic or partition that does not exist on this broker
+2023-04-30 13:34:47: error: failed to write messages: [3] Unknown Topic Or Partition: the request is for a topic or partition that does not exist on this broker
+2023-04-30 13:34:47: Function call failed, retrying in 3s
+2023-04-30 13:34:47: Function call failed, retrying in 3s
+2023-04-30 13:34:47: upload ./main.go n
+2023-04-30 13:34:47: error: failed to write messages: [3] Unknown Topic Or Partition: the request is for a topic or partition that does not exist on this broker
+2023-04-30 13:34:47: Function call failed, retrying in 3s
+2023-04-30 13:34:47: upload ./load_filesystem.go n
+2023-04-30 13:34:47: error: failed to write messages: [3] Unknown Topic Or Partition: the request is for a topic or partition that does not exist on this broker
+2023-04-30 13:34:47: Function call failed, retrying in 3s
+2023-04-30 13:34:47: upload ./vfs/tmp/main/dev n
+2023-04-30 13:34:47: error: failed to write messages: [3] Unknown Topic Or Partition: the request is for a topic or partition that does not exist on this broker
+2023-04-30 13:34:47: Function call failed, retrying in 3s
+2023-04-30 13:34:47: upload ./load_filesystem.go n
+2023-04-30 13:34:47: error: failed to write messages: [3] Unknown Topic Or Partition: the request is for a topic or partition that does not exist on this broker
+2023-04-30 13:34:47: Function call failed, retrying in 3s
+2023-04-30 13:34:47: mkdir n 
+2023-04-30 13:34:47: error: failed to write messages: [3] Unknown Topic Or Partition: the request is for a topic or partition that does not exist on this broker
+2023-04-30 13:34:47: upload ./vfs/main.go n
+2023-04-30 13:34:47: upload ./main.go n
+2023-04-30 13:34:47: error: failed to write messages: [3] Unknown Topic Or Partition: the request is for a topic or partition that does not exist on this broker
+2023-04-30 13:34:47: error: failed to write messages: [3] Unknown Topic Or Partition: the request is for a topic or partition that does not exist on this broker
+2023-04-30 13:34:47: Function call failed, retrying in 3s
+2023-04-30 13:34:47: mkdir n/vfs 
+2023-04-30 13:34:47: error: failed to write messages: [3] Unknown Topic Or Partition: the request is for a topic or partition that does not exist on this broker
+2023-04-30 13:34:47: Function call failed, retrying in 3s
+2023-04-30 13:34:47: mkdir n/vfs/tmp 
+2023-04-30 13:34:47: error: failed to write messages: [3] Unknown Topic Or Partition: the request is for a topic or partition that does not exist on this broker
+2023-04-30 13:34:47: Function call failed, retrying in 3s
+2023-04-30 13:34:47: mkdir n/vfs/tmp/main 
+2023-04-30 13:34:47: error: failed to write messages: [3] Unknown Topic Or Partition: the request is for a topic or partition that does not exist on this broker
+2023-04-30 13:34:47: Function call failed, retrying in 3s
+2023-04-30 13:34:47: Function call failed, retrying in 3s
+2023-04-30 13:34:47: upload ./root.go n
+2023-04-30 13:34:47: error: failed to write messages: [3] Unknown Topic Or Partition: the request is for a topic or partition that does not exist on this broker
+2023-04-30 13:34:47: Function call failed, retrying in 3s
+2023-04-30 13:34:47: Function call failed, retrying in 3s
+2023-04-30 13:34:47: upload ./vfs/tmp/main/dev n
+2023-04-30 13:34:47: error: failed to write messages: [3] Unknown Topic Or Partition: the request is for a topic or partition that does not exist on this broker
+2023-04-30 13:34:47: Function call failed, retrying in 3s
+2023-04-30 13:34:47: mkdir n 
+2023-04-30 13:34:47: error: failed to write messages: [3] Unknown Topic Or Partition: the request is for a topic or partition that does not exist on this broker
+2023-04-30 13:34:47: Function call failed, retrying in 3s
+2023-04-30 13:34:47: mkdir n/vfs/tmp/main 
+2023-04-30 13:34:47: mkdir n/vfs 
+2023-04-30 13:34:47: error: failed to write messages: [3] Unknown Topic Or Partition: the request is for a topic or partition that does not exist on this broker
+2023-04-30 13:34:47: upload ./load_filesystem.go n
+2023-04-30 13:34:47: upload ./root.go n
+2023-04-30 13:34:47: upload ./vfs/main.go n
+2023-04-30 13:34:47: error: failed to write messages: [3] Unknown Topic Or Partition: the request is for a topic or partition that does not exist on this broker
+2023-04-30 13:34:47: Function call failed, retrying in 3s
+2023-04-30 13:34:47: upload ./main.go n
+2023-04-30 13:34:47: error: failed to write messages: [3] Unknown Topic Or Partition: the request is for a topic or partition that does not exist on this broker
+2023-04-30 13:34:47: Function call failed, retrying in 3s
+2023-04-30 13:34:47: error: failed to write messages: [3] Unknown Topic Or Partition: the request is for a topic or partition that does not exist on this broker
+2023-04-30 13:34:47: Function call failed, retrying in 3s
+2023-04-30 13:34:47: Function call failed, retrying in 3s
+2023-04-30 13:34:47: error: failed to write messages: [3] Unknown Topic Or Partition: the request is for a topic or partition that does not exist on this broker
+2023-04-30 13:34:47: Function call failed, retrying in 3s
+2023-04-30 13:34:47: mkdir n/vfs/tmp 
+2023-04-30 13:34:47: error: failed to write messages: [3] Unknown Topic Or Partition: the request is for a topic or partition that does not exist on this broker
+2023-04-30 13:34:47: Function call failed, retrying in 3s
+2023-04-30 13:34:47: error: failed to write messages: [3] Unknown Topic Or Partition: the request is for a topic or partition that does not exist on this broker
+2023-04-30 13:34:47: Function call failed, retrying in 3s
+2023-04-30 13:34:47: upload ./vfs/tmp/main/dev n
+2023-04-30 13:34:47: error: failed to write messages: [3] Unknown Topic Or Partition: the request is for a topic or partition that does not exist on this broker
+2023-04-30 13:34:47: Function call failed, retrying in 3s
+2023-04-30 13:34:47: upload ./load_filesystem.go n
+2023-04-30 13:34:47: mkdir n 
+2023-04-30 13:34:47: error: failed to write messages: [3] Unknown Topic Or Partition: the request is for a topic or partition that does not exist on this broker
+2023-04-30 13:34:47: mkdir n/vfs/tmp 
+2023-04-30 13:34:47: error: failed to write messages: [3] Unknown Topic Or Partition: the request is for a topic or partition that does not exist on this broker
+2023-04-30 13:34:47: Function call failed, retrying in 3s
+2023-04-30 13:34:47: mkdir n/vfs/tmp/main 
+2023-04-30 13:34:47: error: failed to write messages: [3] Unknown Topic Or Partition: the request is for a topic or partition that does not exist on this broker
+2023-04-30 13:34:47: upload ./main.go n
+2023-04-30 13:34:47: error: failed to write messages: [3] Unknown Topic Or Partition: the request is for a topic or partition that does not exist on this broker
+2023-04-30 13:34:47: upload ./vfs/main.go n
+2023-04-30 13:34:47: error: failed to write messages: [3] Unknown Topic Or Partition: the request is for a topic or partition that does not exist on this broker
+2023-04-30 13:34:47: Function call failed, retrying in 3s
+2023-04-30 13:34:47: Function call failed, retrying in 3s
+2023-04-30 13:34:47: Function call failed, retrying in 3s
+2023-04-30 13:34:47: mkdir n/vfs 
+2023-04-30 13:34:47: error: failed to write messages: [3] Unknown Topic Or Partition: the request is for a topic or partition that does not exist on this broker
+2023-04-30 13:34:47: Function call failed, retrying in 3s
+2023-04-30 13:34:47: error: failed to write messages: [3] Unknown Topic Or Partition: the request is for a topic or partition that does not exist on this broker
+2023-04-30 13:34:47: Function call failed, retrying in 3s
+2023-04-30 13:34:47: upload ./root.go n
+2023-04-30 13:34:47: error: failed to write messages: [3] Unknown Topic Or Partition: the request is for a topic or partition that does not exist on this broker
+2023-04-30 13:34:47: Function call failed, retrying in 3s
+2023-04-30 13:34:47: Function call failed, retrying in 3s
+2023-04-30 13:34:47: upload ./vfs/tmp/main/dev n
+2023-04-30 13:34:47: error: failed to write messages: [3] Unknown Topic Or Partition: the request is for a topic or partition that does not exist on this broker
+2023-04-30 13:34:47: Function call failed, retrying in 3s
+2023-04-30 13:34:47: upload ./main.go n
+2023-04-30 13:34:47: error: failed to write messages: [3] Unknown Topic Or Partition: the request is for a topic or partition that does not exist on this broker
+2023-04-30 13:34:47: Function call failed, retrying in 3s
+2023-04-30 13:34:47: upload ./load_filesystem.go n
+2023-04-30 13:34:47: error: failed to write messages: [3] Unknown Topic Or Partition: the request is for a topic or partition that does not exist on this broker
+2023-04-30 13:34:47: mkdir n/vfs/tmp 
+2023-04-30 13:34:47: upload ./root.go n
+2023-04-30 13:34:47: error: failed to write messages: [3] Unknown Topic Or Partition: the request is for a topic or partition that does not exist on this broker
+2023-04-30 13:34:47: Function call failed, retrying in 3s
+2023-04-30 13:34:47: upload ./vfs/main.go n
+2023-04-30 13:34:47: error: failed to write messages: [3] Unknown Topic Or Partition: the request is for a topic or partition that does not exist on this broker
+2023-04-30 13:34:47: Function call failed, retrying in 3s
+2023-04-30 13:34:47: mkdir n/vfs/tmp/main 
+2023-04-30 13:34:47: error: failed to write messages: [3] Unknown Topic Or Partition: the request is for a topic or partition that does not exist on this broker
+2023-04-30 13:34:47: Function call failed, retrying in 3s
+2023-04-30 13:34:47: mkdir n 
+2023-04-30 13:34:47: error: failed to write messages: [3] Unknown Topic Or Partition: the request is for a topic or partition that does not exist on this broker
+2023-04-30 13:34:47: Function call failed, retrying in 3s
+2023-04-30 13:34:47: Function call failed, retrying in 3s
+2023-04-30 13:34:47: mkdir n/vfs 
+2023-04-30 13:34:47: error: failed to write messages: [3] Unknown Topic Or Partition: the request is for a topic or partition that does not exist on this broker
+2023-04-30 13:34:47: Function call failed, retrying in 3s
+2023-04-30 13:34:47: error: failed to write messages: [3] Unknown Topic Or Partition: the request is for a topic or partition that does not exist on this broker
+2023-04-30 13:34:47: Function call failed, retrying in 3s
+2023-04-30 13:34:47: upload ./vfs/tmp/main/dev n
+2023-04-30 13:34:47: error: failed to write messages: [3] Unknown Topic Or Partition: the request is for a topic or partition that does not exist on this broker
+2023-04-30 13:34:47: Function call failed, retrying in 3s
+2023-04-30 13:34:47: upload ./vfs/main.go n
+2023-04-30 13:34:47: mkdir n 
+2023-04-30 13:34:47: upload ./main.go n
+2023-04-30 13:34:47: mkdir n/vfs/tmp/main 
+2023-04-30 13:34:47: mkdir n/vfs 
+2023-04-30 13:34:47: error: failed to write messages: [3] Unknown Topic Or Partition: the request is for a topic or partition that does not exist on this broker
+2023-04-30 13:34:47: error: failed to write messages: [3] Unknown Topic Or Partition: the request is for a topic or partition that does not exist on this broker
+2023-04-30 13:34:47: Function call failed, retrying in 3s
+2023-04-30 13:34:47: Function call failed, retrying in 3s
+2023-04-30 13:34:47: error: failed to write messages: [3] Unknown Topic Or Partition: the request is for a topic or partition that does not exist on this broker
+2023-04-30 13:34:47: Function call failed, retrying in 3s
+2023-04-30 13:34:47: upload ./load_filesystem.go n
+2023-04-30 13:34:47: error: failed to write messages: [3] Unknown Topic Or Partition: the request is for a topic or partition that does not exist on this broker
+2023-04-30 13:34:47: Function call failed, retrying in 3s
+2023-04-30 13:34:47: upload ./root.go n
+2023-04-30 13:34:47: error: failed to write messages: [3] Unknown Topic Or Partition: the request is for a topic or partition that does not exist on this broker
+2023-04-30 13:34:47: Function call failed, retrying in 3s
+2023-04-30 13:34:47: mkdir n/vfs/tmp 
+2023-04-30 13:34:47: error: failed to write messages: [3] Unknown Topic Or Partition: the request is for a topic or partition that does not exist on this broker
+2023-04-30 13:34:47: Function call failed, retrying in 3s
+2023-04-30 13:34:47: error: failed to write messages: [3] Unknown Topic Or Partition: the request is for a topic or partition that does not exist on this broker
+2023-04-30 13:34:47: Function call failed, retrying in 3s
+2023-04-30 13:34:47: error: failed to write messages: [3] Unknown Topic Or Partition: the request is for a topic or partition that does not exist on this broker
+2023-04-30 13:34:47: Function call failed, retrying in 3s
+2023-04-30 13:34:47: upload ./vfs/tmp/main/dev n
+2023-04-30 13:34:47: error: failed to write messages: [3] Unknown Topic Or Partition: the request is for a topic or partition that does not exist on this broker
+2023-04-30 13:34:47: Function call failed, retrying in 3s
+2023-04-30 13:34:47: upload ./load_filesystem.go n
+2023-04-30 13:34:47: mkdir n/vfs 
+2023-04-30 13:34:47: error: failed to write messages: [3] Unknown Topic Or Partition: the request is for a topic or partition that does not exist on this broker
+2023-04-30 13:34:47: error: failed to write messages: [3] Unknown Topic Or Partition: the request is for a topic or partition that does not exist on this broker
+2023-04-30 13:34:47: Function call failed, retrying in 3s
+2023-04-30 13:34:47: Function call failed, retrying in 3s
+2023-04-30 13:34:47: upload ./vfs/main.go n
+2023-04-30 13:34:47: error: failed to write messages: [3] Unknown Topic Or Partition: the request is for a topic or partition that does not exist on this broker
+2023-04-30 13:34:47: Function call failed, retrying in 3s
+2023-04-30 13:34:47: upload ./main.go n
+2023-04-30 13:34:47: error: failed to write messages: [3] Unknown Topic Or Partition: the request is for a topic or partition that does not exist on this broker
+2023-04-30 13:34:47: Function call failed, retrying in 3s
+2023-04-30 13:34:47: mkdir n 
+2023-04-30 13:34:47: error: failed to write messages: [3] Unknown Topic Or Partition: the request is for a topic or partition that does not exist on this broker
+2023-04-30 13:34:47: Function call failed, retrying in 3s
+2023-04-30 13:34:47: mkdir n/vfs/tmp/main 
+2023-04-30 13:34:47: error: failed to write messages: [3] Unknown Topic Or Partition: the request is for a topic or partition that does not exist on this broker
+2023-04-30 13:34:47: Function call failed, retrying in 3s
+2023-04-30 13:34:47: mkdir n/vfs/tmp 
+2023-04-30 13:34:47: error: failed to write messages: [3] Unknown Topic Or Partition: the request is for a topic or partition that does not exist on this broker
+2023-04-30 13:34:47: Function call failed, retrying in 3s
+2023-04-30 13:34:47: upload ./root.go n
+2023-04-30 13:34:47: error: failed to write messages: [3] Unknown Topic Or Partition: the request is for a topic or partition that does not exist on this broker
+2023-04-30 13:34:47: Function call failed, retrying in 3s
+2023-04-30 13:34:47: upload ./vfs/tmp/main/dev n
+2023-04-30 13:34:47: error: failed to write messages: [3] Unknown Topic Or Partition: the request is for a topic or partition that does not exist on this broker
+2023-04-30 13:34:47: Function call failed, retrying in 3s
+2023-04-30 13:34:47: mkdir n/vfs/tmp/main 
+2023-04-30 13:34:47: upload ./main.go n
+2023-04-30 13:34:47: error: failed to write messages: [3] Unknown Topic Or Partition: the request is for a topic or partition that does not exist on this broker
+2023-04-30 13:34:47: Function call failed, retrying in 3s
+2023-04-30 13:34:47: mkdir n/vfs 
+2023-04-30 13:34:47: error: failed to write messages: [3] Unknown Topic Or Partition: the request is for a topic or partition that does not exist on this broker
+2023-04-30 13:34:47: Function call failed, retrying in 3s
+2023-04-30 13:34:47: upload ./load_filesystem.go n
+2023-04-30 13:34:47: error: failed to write messages: [3] Unknown Topic Or Partition: the request is for a topic or partition that does not exist on this broker
+2023-04-30 13:34:47: Function call failed, retrying in 3s
+2023-04-30 13:34:47: mkdir n 
+2023-04-30 13:34:47: error: failed to write messages: [3] Unknown Topic Or Partition: the request is for a topic or partition that does not exist on this broker
+2023-04-30 13:34:47: Function call failed, retrying in 3s
+2023-04-30 13:34:47: mkdir n/vfs/tmp 
+2023-04-30 13:34:47: error: failed to write messages: [3] Unknown Topic Or Partition: the request is for a topic or partition that does not exist on this broker
+2023-04-30 13:34:47: Function call failed, retrying in 3s
+2023-04-30 13:34:47: upload ./vfs/main.go n
+2023-04-30 13:34:47: error: failed to write messages: [3] Unknown Topic Or Partition: the request is for a topic or partition that does not exist on this broker
+2023-04-30 13:34:47: Function call failed, retrying in 3s
+2023-04-30 13:34:47: upload ./root.go n
+2023-04-30 13:34:47: error: failed to write messages: [3] Unknown Topic Or Partition: the request is for a topic or partition that does not exist on this broker
+2023-04-30 13:34:47: Function call failed, retrying in 3s
+2023-04-30 13:34:47: error: failed to write messages: [3] Unknown Topic Or Partition: the request is for a topic or partition that does not exist on this broker
+2023-04-30 13:34:47: Function call failed, retrying in 3s
+2023-04-30 13:34:47: upload ./vfs/tmp/main/dev n
+2023-04-30 13:34:47: error: failed to write messages: [3] Unknown Topic Or Partition: the request is for a topic or partition that does not exist on this broker
+2023-04-30 13:34:47: Function call failed, retrying in 3s
+2023-04-30 13:51:05: mkdir n/vfs/tmp/main 
+2023-04-30 13:51:05: mkdir n 
+2023-04-30 13:51:05: upload ./vfs/main.go n
+2023-04-30 13:51:05: upload ./main.go n
+2023-04-30 13:51:05: upload ./load_filesystem.go n
+2023-04-30 13:51:05: upload ./root.go n
+2023-04-30 13:51:05: mkdir n/vfs/tmp 
+2023-04-30 13:51:05: mkdir n/vfs 
+2023-04-30 13:51:05: upload ./vfs/tmp/main/dev n
+2023-04-30 14:34:27: upload ./vfs/main.go n
+2023-04-30 14:34:27: mkdir n/vfs 
+2023-04-30 14:34:27: mkdir n/vfs/tmp/main 
+2023-04-30 14:34:27: upload ./load_filesystem.go n
+2023-04-30 14:34:27: upload ./main.go n
+2023-04-30 14:34:27: upload ./root.go n
+2023-04-30 14:34:27: mkdir n 
+2023-04-30 14:34:27: mkdir n/vfs/tmp 
+2023-04-30 14:34:27: upload ./vfs/tmp/main/dev n
+2023-04-30 15:09:52: upload ./logger.go o
+2023-04-30 15:09:52: upload ./init.go o
+2023-04-30 15:09:52: mkdir o 
+2023-04-30 15:09:52: upload ./dependencies.go o
+2023-04-30 15:09:52: upload ./config.go o
+2023-04-30 16:27:47: zip: not a valid zip file
+2023-04-30 17:08:19: upload ./logger.go p
+2023-04-30 17:08:19: upload ./config.go p
+2023-04-30 17:08:19: ERROR: kafka writer failed to write messages: dial tcp 127.0.0.1:9092: connect: connection refused
+2023-04-30 17:08:19: ERROR: kafka writer failed to write messages: dial tcp 127.0.0.1:9092: connect: connection refused
+2023-04-30 17:08:19: ERROR: Function call failed, retrying in 3s
+2023-04-30 17:08:19: mkdir p 
+2023-04-30 17:08:19: ERROR: kafka writer failed to write messages: dial tcp 127.0.0.1:9092: connect: connection refused
+2023-04-30 17:08:19: ERROR: Function call failed, retrying in 3s
+2023-04-30 17:08:19: upload ./dependencies.go p
+2023-04-30 17:08:19: ERROR: kafka writer failed to write messages: dial tcp 127.0.0.1:9092: connect: connection refused
+2023-04-30 17:08:19: ERROR: Function call failed, retrying in 3s
+2023-04-30 17:08:19: upload ./init.go p
+2023-04-30 17:08:19: ERROR: kafka writer failed to write messages: dial tcp 127.0.0.1:9092: connect: connection refused
+2023-04-30 17:08:19: ERROR: Function call failed, retrying in 3s
+2023-04-30 17:08:19: ERROR: Function call failed, retrying in 3s
+2023-04-30 17:08:19: upload ./config.go p
+2023-04-30 17:08:19: ERROR: kafka writer failed to write messages: dial tcp 127.0.0.1:9092: connect: connection refused
+2023-04-30 17:08:19: ERROR: Function call failed, retrying in 3s
+2023-04-30 17:08:19: upload ./init.go p
+2023-04-30 17:08:19: ERROR: kafka writer failed to write messages: dial tcp 127.0.0.1:9092: connect: connection refused
+2023-04-30 17:08:19: ERROR: Function call failed, retrying in 3s
+2023-04-30 17:08:19: upload ./logger.go p
+2023-04-30 17:08:19: ERROR: kafka writer failed to write messages: dial tcp 127.0.0.1:9092: connect: connection refused
+2023-04-30 17:08:19: ERROR: Function call failed, retrying in 3s
+2023-04-30 17:08:19: upload ./dependencies.go p
+2023-04-30 17:08:19: ERROR: kafka writer failed to write messages: dial tcp 127.0.0.1:9092: connect: connection refused
+2023-04-30 17:08:19: ERROR: Function call failed, retrying in 3s
+2023-04-30 17:08:19: mkdir p 
+2023-04-30 17:08:19: ERROR: kafka writer failed to write messages: dial tcp 127.0.0.1:9092: connect: connection refused
+2023-04-30 17:08:19: ERROR: Function call failed, retrying in 3s
+2023-04-30 17:08:19: mkdir p 
+2023-04-30 17:08:19: upload ./init.go p
+2023-04-30 17:08:19: ERROR: kafka writer failed to write messages: dial tcp 127.0.0.1:9092: connect: connection refused
+2023-04-30 17:08:19: ERROR: Function call failed, retrying in 3s
+2023-04-30 17:08:19: ERROR: kafka writer failed to write messages: dial tcp 127.0.0.1:9092: connect: connection refused
+2023-04-30 17:08:19: ERROR: Function call failed, retrying in 3s
+2023-04-30 17:08:19: upload ./logger.go p
+2023-04-30 17:08:19: ERROR: kafka writer failed to write messages: dial tcp 127.0.0.1:9092: connect: connection refused
+2023-04-30 17:08:19: ERROR: Function call failed, retrying in 3s
+2023-04-30 17:08:19: upload ./config.go p
+2023-04-30 17:08:19: ERROR: kafka writer failed to write messages: dial tcp 127.0.0.1:9092: connect: connection refused
+2023-04-30 17:08:19: ERROR: Function call failed, retrying in 3s
+2023-04-30 17:08:19: upload ./dependencies.go p
+2023-04-30 17:08:19: ERROR: kafka writer failed to write messages: dial tcp 127.0.0.1:9092: connect: connection refused
+2023-04-30 17:08:19: ERROR: Function call failed, retrying in 3s
+2023-04-30 17:08:19: mkdir p 
+2023-04-30 17:08:19: upload ./logger.go p
+2023-04-30 17:08:19: ERROR: kafka writer failed to write messages: dial tcp 127.0.0.1:9092: connect: connection refused
+2023-04-30 17:08:19: ERROR: kafka writer failed to write messages: dial tcp 127.0.0.1:9092: connect: connection refused
+2023-04-30 17:08:19: ERROR: Function call failed, retrying in 3s
+2023-04-30 17:08:19: ERROR: Function call failed, retrying in 3s
+2023-04-30 17:08:19: upload ./dependencies.go p
+2023-04-30 17:08:19: ERROR: kafka writer failed to write messages: dial tcp 127.0.0.1:9092: connect: connection refused
+2023-04-30 17:08:19: ERROR: Function call failed, retrying in 3s
+2023-04-30 17:08:19: upload ./init.go p
+2023-04-30 17:08:19: ERROR: kafka writer failed to write messages: dial tcp 127.0.0.1:9092: connect: connection refused
+2023-04-30 17:08:19: ERROR: Function call failed, retrying in 3s
+2023-04-30 17:08:19: upload ./config.go p
+2023-04-30 17:08:19: ERROR: kafka writer failed to write messages: dial tcp 127.0.0.1:9092: connect: connection refused
+2023-04-30 17:08:19: ERROR: Function call failed, retrying in 3s
+2023-04-30 17:08:19: mkdir p 
+2023-04-30 17:08:19: upload ./logger.go p
+2023-04-30 17:08:19: upload ./init.go p
+2023-04-30 17:08:19: ERROR: kafka writer failed to write messages: dial tcp 127.0.0.1:9092: connect: connection refused
+2023-04-30 17:08:19: ERROR: Function call failed, retrying in 3s
+2023-04-30 17:08:19: ERROR: kafka writer failed to write messages: dial tcp 127.0.0.1:9092: connect: connection refused
+2023-04-30 17:08:19: ERROR: Function call failed, retrying in 3s
+2023-04-30 17:08:19: upload ./dependencies.go p
+2023-04-30 17:08:19: ERROR: kafka writer failed to write messages: dial tcp 127.0.0.1:9092: connect: connection refused
+2023-04-30 17:08:19: ERROR: Function call failed, retrying in 3s
+2023-04-30 17:08:19: upload ./config.go p
+2023-04-30 17:08:19: ERROR: kafka writer failed to write messages: dial tcp 127.0.0.1:9092: connect: connection refused
+2023-04-30 17:08:19: ERROR: Function call failed, retrying in 3s
+2023-04-30 17:08:19: ERROR: kafka writer failed to write messages: dial tcp 127.0.0.1:9092: connect: connection refused
+2023-04-30 17:08:19: ERROR: Function call failed, retrying in 3s
+2023-04-30 17:08:19: upload ./logger.go p
+2023-04-30 17:08:19: upload ./dependencies.go p
+2023-04-30 17:08:19: ERROR: kafka writer failed to write messages: dial tcp 127.0.0.1:9092: connect: connection refused
+2023-04-30 17:08:19: ERROR: kafka writer failed to write messages: dial tcp 127.0.0.1:9092: connect: connection refused
+2023-04-30 17:08:19: ERROR: Function call failed, retrying in 3s
+2023-04-30 17:08:19: mkdir p 
+2023-04-30 17:08:19: ERROR: kafka writer failed to write messages: dial tcp 127.0.0.1:9092: connect: connection refused
+2023-04-30 17:08:19: ERROR: Function call failed, retrying in 3s
+2023-04-30 17:08:19: upload ./init.go p
+2023-04-30 17:08:19: ERROR: kafka writer failed to write messages: dial tcp 127.0.0.1:9092: connect: connection refused
+2023-04-30 17:08:19: upload ./config.go p
+2023-04-30 17:08:19: ERROR: kafka writer failed to write messages: dial tcp 127.0.0.1:9092: connect: connection refused
+2023-04-30 17:08:19: ERROR: Function call failed, retrying in 3s
+2023-04-30 17:08:19: ERROR: Function call failed, retrying in 3s
+2023-04-30 17:08:19: ERROR: Function call failed, retrying in 3s
+2023-04-30 17:08:19: upload ./init.go p
+2023-04-30 17:08:19: upload ./dependencies.go p
+2023-04-30 17:08:19: upload ./logger.go p
+2023-04-30 17:08:19: ERROR: kafka writer failed to write messages: dial tcp 127.0.0.1:9092: connect: connection refused
+2023-04-30 17:08:19: ERROR: Function call failed, retrying in 3s
+2023-04-30 17:08:19: upload ./config.go p
+2023-04-30 17:08:19: ERROR: kafka writer failed to write messages: dial tcp 127.0.0.1:9092: connect: connection refused
+2023-04-30 17:08:19: ERROR: Function call failed, retrying in 3s
+2023-04-30 17:08:19: ERROR: kafka writer failed to write messages: dial tcp 127.0.0.1:9092: connect: connection refused
+2023-04-30 17:08:19: ERROR: Function call failed, retrying in 3s
+2023-04-30 17:08:19: ERROR: kafka writer failed to write messages: dial tcp 127.0.0.1:9092: connect: connection refused
+2023-04-30 17:08:19: ERROR: Function call failed, retrying in 3s
+2023-04-30 17:08:19: mkdir p 
+2023-04-30 17:08:19: ERROR: kafka writer failed to write messages: dial tcp 127.0.0.1:9092: connect: connection refused
+2023-04-30 17:08:19: ERROR: Function call failed, retrying in 3s
+2023-04-30 17:08:19: upload ./logger.go p
+2023-04-30 17:08:19: ERROR: kafka writer failed to write messages: dial tcp 127.0.0.1:9092: connect: connection refused
+2023-04-30 17:08:19: ERROR: Function call failed, retrying in 3s
+2023-04-30 17:08:19: mkdir p 
+2023-04-30 17:08:19: upload ./config.go p
+2023-04-30 17:08:19: ERROR: kafka writer failed to write messages: dial tcp 127.0.0.1:9092: connect: connection refused
+2023-04-30 17:08:19: ERROR: Function call failed, retrying in 3s
+2023-04-30 17:08:19: upload ./dependencies.go p
+2023-04-30 17:08:19: ERROR: kafka writer failed to write messages: dial tcp 127.0.0.1:9092: connect: connection refused
+2023-04-30 17:08:19: ERROR: kafka writer failed to write messages: dial tcp 127.0.0.1:9092: connect: connection refused
+2023-04-30 17:08:19: ERROR: Function call failed, retrying in 3s
+2023-04-30 17:08:19: ERROR: Function call failed, retrying in 3s
+2023-04-30 17:08:19: upload ./init.go p
+2023-04-30 17:08:19: ERROR: kafka writer failed to write messages: dial tcp 127.0.0.1:9092: connect: connection refused
+2023-04-30 17:08:19: ERROR: Function call failed, retrying in 3s
+2023-04-30 17:08:19: upload ./logger.go p
+2023-04-30 17:08:19: ERROR: kafka writer failed to write messages: dial tcp 127.0.0.1:9092: connect: connection refused
+2023-04-30 17:08:19: upload ./config.go p
+2023-04-30 17:08:19: ERROR: kafka writer failed to write messages: dial tcp 127.0.0.1:9092: connect: connection refused
+2023-04-30 17:08:19: ERROR: Function call failed, retrying in 3s
+2023-04-30 17:08:19: ERROR: Function call failed, retrying in 3s
+2023-04-30 17:08:19: upload ./dependencies.go p
+2023-04-30 17:08:19: ERROR: kafka writer failed to write messages: dial tcp 127.0.0.1:9092: connect: connection refused
+2023-04-30 17:08:19: ERROR: Function call failed, retrying in 3s
+2023-04-30 17:08:19: mkdir p 
+2023-04-30 17:08:19: upload ./init.go p
+2023-04-30 17:08:19: ERROR: kafka writer failed to write messages: dial tcp 127.0.0.1:9092: connect: connection refused
+2023-04-30 17:08:19: ERROR: Function call failed, retrying in 3s
+2023-04-30 17:08:19: ERROR: kafka writer failed to write messages: dial tcp 127.0.0.1:9092: connect: connection refused
+2023-04-30 17:08:19: ERROR: Function call failed, retrying in 3s
+2023-04-30 17:08:19: upload ./logger.go p
+2023-04-30 17:08:19: ERROR: kafka writer failed to write messages: dial tcp 127.0.0.1:9092: connect: connection refused
+2023-04-30 17:08:19: ERROR: Function call failed, retrying in 3s
+2023-04-30 17:08:19: upload ./config.go p
+2023-04-30 17:08:19: ERROR: kafka writer failed to write messages: dial tcp 127.0.0.1:9092: connect: connection refused
+2023-04-30 17:08:19: ERROR: Function call failed, retrying in 3s
+2023-04-30 17:08:19: mkdir p 
+2023-04-30 17:08:19: ERROR: kafka writer failed to write messages: dial tcp 127.0.0.1:9092: connect: connection refused
+2023-04-30 17:08:19: upload ./dependencies.go p
+2023-04-30 17:08:19: upload ./init.go p
+2023-04-30 17:08:19: ERROR: kafka writer failed to write messages: dial tcp 127.0.0.1:9092: connect: connection refused
+2023-04-30 17:08:19: ERROR: kafka writer failed to write messages: dial tcp 127.0.0.1:9092: connect: connection refused
+2023-04-30 17:08:19: ERROR: Function call failed, retrying in 3s
+2023-04-30 17:08:19: ERROR: Function call failed, retrying in 3s
+2023-04-30 17:08:19: ERROR: Function call failed, retrying in 3s
+2023-04-30 17:08:19: upload ./config.go p
+2023-04-30 17:08:19: ERROR: kafka writer failed to write messages: dial tcp 127.0.0.1:9092: connect: connection refused
+2023-04-30 17:08:19: ERROR: Function call failed, retrying in 3s
+2023-04-30 17:08:19: upload ./logger.go p
+2023-04-30 17:08:19: ERROR: kafka writer failed to write messages: dial tcp 127.0.0.1:9092: connect: connection refused
+2023-04-30 17:08:19: ERROR: Function call failed, retrying in 3s
+2023-04-30 17:08:19: upload ./init.go p
+2023-04-30 17:08:19: ERROR: kafka writer failed to write messages: dial tcp 127.0.0.1:9092: connect: connection refused
+2023-04-30 17:08:19: ERROR: Function call failed, retrying in 3s
+2023-04-30 17:08:19: mkdir p 
+2023-04-30 17:08:19: ERROR: kafka writer failed to write messages: dial tcp 127.0.0.1:9092: connect: connection refused
+2023-04-30 17:08:19: upload ./dependencies.go p
+2023-04-30 17:08:19: ERROR: kafka writer failed to write messages: dial tcp 127.0.0.1:9092: connect: connection refused
+2023-04-30 17:08:19: ERROR: Function call failed, retrying in 3s
+2023-04-30 17:08:19: ERROR: Function call failed, retrying in 3s
+2023-04-30 17:08:19: upload ./logger.go p
+2023-04-30 17:08:19: ERROR: kafka writer failed to write messages: read tcp 127.0.0.1:55094->127.0.0.1:9092: read: connection reset by peer
+2023-04-30 17:08:19: ERROR: Function call failed, retrying in 3s
+2023-04-30 17:08:19: upload ./config.go p
+2023-04-30 17:08:19: ERROR: kafka writer failed to write messages: read tcp 127.0.0.1:55094->127.0.0.1:9092: read: connection reset by peer
+2023-04-30 17:08:19: ERROR: Function call failed, retrying in 3s
+2023-04-30 17:08:19: upload ./dependencies.go p
+2023-04-30 17:08:19: ERROR: kafka writer failed to write messages: read tcp 127.0.0.1:55094->127.0.0.1:9092: read: connection reset by peer
+2023-04-30 17:08:19: ERROR: Function call failed, retrying in 3s
+2023-04-30 17:08:19: mkdir p 
+2023-04-30 17:08:19: upload ./init.go p
+2023-04-30 17:08:19: ERROR: kafka writer failed to write messages: read tcp 127.0.0.1:55094->127.0.0.1:9092: read: connection reset by peer
+2023-04-30 17:08:19: ERROR: kafka writer failed to write messages: read tcp 127.0.0.1:55094->127.0.0.1:9092: read: connection reset by peer
+2023-04-30 17:08:19: ERROR: Function call failed, retrying in 3s
+2023-04-30 17:08:19: ERROR: Function call failed, retrying in 3s
+2023-04-30 17:08:19: upload ./config.go p
+2023-04-30 17:08:19: ERROR: kafka writer failed to write messages: read tcp 127.0.0.1:55120->127.0.0.1:9092: read: connection reset by peer
+2023-04-30 17:08:19: ERROR: Function call failed, retrying in 3s
+2023-04-30 17:08:19: upload ./logger.go p
+2023-04-30 17:08:19: ERROR: kafka writer failed to write messages: read tcp 127.0.0.1:55120->127.0.0.1:9092: read: connection reset by peer
+2023-04-30 17:08:19: ERROR: Function call failed, retrying in 3s
+2023-04-30 17:08:19: upload ./init.go p
+2023-04-30 17:08:19: ERROR: kafka writer failed to write messages: read tcp 127.0.0.1:55120->127.0.0.1:9092: read: connection reset by peer
+2023-04-30 17:08:19: mkdir p 
+2023-04-30 17:08:19: ERROR: kafka writer failed to write messages: read tcp 127.0.0.1:55120->127.0.0.1:9092: read: connection reset by peer
+2023-04-30 17:08:19: ERROR: Function call failed, retrying in 3s
+2023-04-30 17:08:19: ERROR: Function call failed, retrying in 3s
+2023-04-30 17:08:19: upload ./dependencies.go p
+2023-04-30 17:08:19: ERROR: kafka writer failed to write messages: read tcp 127.0.0.1:55120->127.0.0.1:9092: read: connection reset by peer
+2023-04-30 17:08:19: ERROR: Function call failed, retrying in 3s
+2023-04-30 17:08:19: upload ./logger.go p
+2023-04-30 17:08:19: upload ./config.go p
+2023-04-30 17:08:19: upload ./dependencies.go p
+2023-04-30 17:08:19: upload ./init.go p
+2023-04-30 17:08:19: mkdir p 
+2023-04-30 18:38:27: chmod p 
+2023-04-30 18:38:27: chmod p 
+2023-04-30 18:40:24: upload ./config.go q
+2023-04-30 18:40:24: upload ./logger.go q
+2023-04-30 18:40:24: upload ./dependencies.go q
+2023-04-30 18:40:24: upload ./init.go q
+2023-04-30 18:40:24: mkdir q 
+2023-04-30 18:41:32: chmod q 
+2023-04-30 19:25:26: chmod . 
+2023-04-30 19:25:26: chmod . 
+2023-04-30 19:25:26: chmod sd 
+2023-04-30 21:04:38: chmod q 
+2023-04-30 21:04:38: chmod q 
+2023-04-30 21:14:15: ERROR:  open output/backup/e/color_constant.go: no such file or directory
+2023-04-30 21:04:38: chmod p 

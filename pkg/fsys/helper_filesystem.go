@@ -2,17 +2,13 @@ package fsys
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"sort"
 	"strings"
-)
 
-var (
-	ErrTokenNotFound    = errors.New("failed to get token from context")
-	ErrUsernameNotFound = errors.New("failed to get username from context")
+	"github.com/marcellof23/vfs-TA/constant"
 )
 
 type WalkDirFunc func(path, filename string, fs *Filesystem, err error) error
@@ -21,7 +17,7 @@ func GetTokenFromContext(c context.Context) (string, error) {
 	tmp := c.Value("token")
 	token, ok := tmp.(string)
 	if !ok {
-		return "", ErrTokenNotFound
+		return "", constant.ErrTokenNotFound
 	}
 	return token, nil
 }
@@ -264,4 +260,14 @@ func walkDir(fsys *Filesystem, path string, walkDirFn WalkDirFunc) error {
 	}
 
 	return nil
+}
+
+func contains(s []string, str string) bool {
+	for _, v := range s {
+		if v == str {
+			return true
+		}
+	}
+
+	return false
 }

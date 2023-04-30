@@ -1,6 +1,7 @@
 package fsys
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"os/exec"
@@ -44,17 +45,18 @@ func (s *Shell) ClearScreen() {
 }
 
 // ChDir switches you to a different active directory.
-func (s *Shell) ChDir(dirName string) {
+func (s *Shell) ChDir(_ context.Context, dirName string) error {
 	if dirName == "/" {
 		s.Fs = root
-		return
+		return nil
 	}
 
 	fsVerified, err := s.verifyPath(dirName)
 	if err != nil {
-		return
+		return err
 	}
 	s.Fs = fsVerified
+	return nil
 }
 
 func (s *Shell) cat(filename string) {

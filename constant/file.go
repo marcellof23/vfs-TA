@@ -7,11 +7,12 @@ type PathIndex struct {
 }
 
 var Command = map[string]PathIndex{
-	"cp":     {1, 2},
-	"rm":     {1, -1},
-	"upload": {1, 2},
-	"mkdir":  {1, -1},
-	"cat":    {1, -1},
-	"cd":     {1, -1},
-	"chmod":  {1, -1},
+	"cp":      {1, 2},
+	"rm":      {1, -1},
+	"upload":  {1, 2},
+	"mkdir":   {1, -1},
+	"cat":     {1, -1},
+	"cd":      {1, -1},
+	"chmod":   {1, -1},
+	"migrate": {1, -1},
 }

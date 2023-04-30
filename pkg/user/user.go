@@ -55,7 +55,6 @@ func (currentUser *User) InitPrompt() *readline.Instance {
 		readline.PcItem("touch"),
 		readline.PcItem("rm"),
 		readline.PcItem("cp"),
-		readline.PcItem("mv"),
 		readline.PcItem("chmod"),
 		readline.PcItem("upload"),
 		readline.PcItem("exit"),

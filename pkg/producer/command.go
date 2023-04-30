@@ -11,7 +11,6 @@ import (
 )
 
 const (
-	network       = "tcp"
 	brokerAddress = "localhost:9092"
 	topic         = "command-log"
 )
@@ -33,9 +32,9 @@ type Effector func(context.Context, Message) error
 
 func Retry(effector Effector, delay time.Duration) Effector {
 	return func(ctx context.Context, msg Message) error {
-		log, ok := ctx.Value("logger").(*log.Logger)
+		log, ok := ctx.Value("server-logger").(*log.Logger)
 		if !ok {
-			return fmt.Errorf("logger not initiated")
+			return fmt.Errorf("ERROR: logger not initiated")
 		}
 
 		for r := 0; ; r++ {
@@ -44,7 +43,7 @@ func Retry(effector Effector, delay time.Duration) Effector {
 				return err
 			}
 
-			log.Printf("Function call failed, retrying in %v\n", delay)
+			log.Printf("ERROR: Function call failed, retrying in %v\n", delay)
 
 			select {
 			case <-time.After(delay):
@@ -57,9 +56,9 @@ func Retry(effector Effector, delay time.Duration) Effector {
 
 func ProduceCommand(ctx context.Context, msg Message) error {
 
-	log, ok := ctx.Value("logger").(*log.Logger)
+	log, ok := ctx.Value("server-logger").(*log.Logger)
 	if !ok {
-		return fmt.Errorf("logger not initiated")
+		return fmt.Errorf("ERROR: logger not initiated")
 	}
 
 	writer := kafka.Writer{
@@ -71,7 +70,7 @@ func ProduceCommand(ctx context.Context, msg Message) error {
 	var buff []byte
 	buff, err := json.Marshal(msg)
 	if err != nil {
-		log.Println("failed to marshal:", err)
+		log.Println("ERROR: failed to marshal:", err)
 		return err
 	}
 
@@ -83,12 +82,12 @@ func ProduceCommand(ctx context.Context, msg Message) error {
 	log.Println(msg.Command, msg.AbsPathSource, msg.AbsPathDest)
 
 	if err != nil {
-		log.Println("failed to write messages:", err)
+		log.Println("ERROR: kafka writer failed to write messages:", err)
 		return err
 	}
 
 	if err := writer.Close(); err != nil {
-		log.Println("failed to close writer:", err)
+		log.Println("ERROR: failed to close writer:", err)
 		return err
 	}
 

@@ -5,6 +5,8 @@ import (
 	"strings"
 
 	"github.com/spf13/afero"
+
+	"github.com/marcellof23/vfs-TA/constant"
 )
 
 func (s *Shell) doesDirExist(dirName string, fs *Filesystem) bool {
@@ -30,8 +32,8 @@ func (s *Shell) verifyPath(dirName string) (*Filesystem, error) {
 		} else if s.doesDirExist(segment, checker) == true {
 			checker = checker.directories[segment]
 		} else {
-			fmt.Printf("Error : %s doesn't exist\n", dirName)
-			return s.Fs, fmt.Errorf("Error : %s doesn't exist\n", dirName)
+			return s.Fs, constant.Errorf(constant.ErrPathFormatNotFound.Error(), dirName)
+			//return s.Fs, fmt.Errorf("Error : %s doesn't exist", dirName)
 		}
 	}
 	return checker, nil

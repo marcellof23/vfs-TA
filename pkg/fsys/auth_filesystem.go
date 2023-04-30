@@ -1,18 +1,11 @@
 package fsys
 
 import (
-	"errors"
-	"fmt"
 	"path/filepath"
 	"reflect"
 	"strings"
 
 	"github.com/marcellof23/vfs-TA/constant"
-)
-
-var (
-	ErrUnauthorizedAccess = errors.New("you are not authorized to perform this action")
-	ErrPathNotFound       = errors.New("no such file or directory")
 )
 
 func concludeAccess(accessSlice []string) string {
@@ -98,20 +91,20 @@ func (fs *Filesystem) getAccess(path, role string) (string, error) {
 			accessSlice = append(accessSlice, fileAccess[len(fileAccess)-3:])
 			acc := concludeAccess(accessSlice)
 			if acc == "" {
-				return "", ErrUnauthorizedAccess
+				return "", constant.ErrUnauthorizedAccess
 			}
 			return acc, nil
 		} else {
 			acc := concludeAccess(accessSlice)
 			if acc == "" {
-				return "", ErrUnauthorizedAccess
+				return "", constant.ErrUnauthorizedAccess
 			}
 			return acc, nil
 		}
 	}
 	acc := concludeAccess(accessSlice)
 	if acc == "" {
-		return "", ErrUnauthorizedAccess
+		return "", constant.ErrUnauthorizedAccess
 	}
 	return acc, nil
 }
@@ -179,8 +172,6 @@ func (fs *Filesystem) FilesystemAccessAuth(role string, isRec bool, command stri
 			}
 		}
 
-		fmt.Println(srcAccess, dstAccess)
-		fmt.Println(srcPath, dstPath)
 		switch command {
 		case "cp":
 			if isRec {
@@ -190,11 +181,11 @@ func (fs *Filesystem) FilesystemAccessAuth(role string, isRec bool, command stri
 				}
 
 				if !checkAccess(srcAccess, "r-x") {
-					return ErrUnauthorizedAccess
+					return constant.ErrUnauthorizedAccess
 				}
 
 				if !checkAccess(dstAccess, "r-x") {
-					return ErrUnauthorizedAccess
+					return constant.ErrUnauthorizedAccess
 				}
 			} else {
 				err = fs.CheckCPPath(srcPath, dstPath)
@@ -203,60 +194,73 @@ func (fs *Filesystem) FilesystemAccessAuth(role string, isRec bool, command stri
 				}
 
 				if !checkAccess(srcAccess, "r--") {
-					return ErrUnauthorizedAccess
+					return constant.ErrUnauthorizedAccess
 				}
 
 				if !checkAccess(dstAccess, "-w-") {
-					return ErrUnauthorizedAccess
+					return constant.ErrUnauthorizedAccess
 				}
 			}
 		case "rm":
 			if isRec {
 				if !checkAccess(srcAccess, "-wx") {
-					return ErrUnauthorizedAccess
+					return constant.ErrUnauthorizedAccess
 				}
 			} else {
 				if !checkAccess(srcAccess, "-wx") {
-					return ErrUnauthorizedAccess
+					return constant.ErrUnauthorizedAccess
 				}
 			}
 		case "upload":
 			if isRec {
-				if !checkAccess(srcAccess, "-wx") {
-					return ErrUnauthorizedAccess
+				if !checkAccess(dstAccess, "r-x") {
+					return constant.ErrUnauthorizedAccess
 				}
 			} else {
-				if !checkAccess(srcAccess, "-wx") {
-					return ErrUnauthorizedAccess
+				if !checkAccess(dstAccess, "-w-") {
+					return constant.ErrUnauthorizedAccess
 				}
 			}
 		case "mkdir":
-			if isRec {
-				if !checkAccess(srcAccess, "-wx") {
-					return ErrUnauthorizedAccess
+			splitPaths := strings.Split(srcPath, "/")
+			splitPaths = splitPaths[:len(splitPaths)-1]
+			remainingSourceDest := filepath.ToSlash(filepath.Join(splitPaths...))
+			if len(splitPaths) > 1 {
+				srcAccess, err = fs.getAccess(remainingSourceDest, role)
+				if err != nil {
+					return err
 				}
-			} else {
-				if !checkAccess(srcAccess, "-wx") {
-					return ErrUnauthorizedAccess
-				}
+			}
+
+			srcAccess, err = fs.getAccess(".", role)
+			if err != nil {
+				return err
+			}
+
+			if !checkAccess(srcAccess, "-wx") {
+				return constant.ErrUnauthorizedAccess
 			}
 		case "cat":
 			if isRec {
 				if !checkAccess(srcAccess, "-wx") {
-					return ErrUnauthorizedAccess
+					return constant.ErrUnauthorizedAccess
 				}
 			} else {
 				if !checkAccess(srcAccess, "-wx") {
-					return ErrUnauthorizedAccess
+					return constant.ErrUnauthorizedAccess
 				}
 			}
 		case "cd":
 			if !checkAccess(srcAccess, "--x") {
-				return ErrUnauthorizedAccess
+				return constant.ErrUnauthorizedAccess
 			}
 		case "chmod":
 			if role == "Normal" {
-				return ErrUnauthorizedAccess
+				return constant.ErrUnauthorizedAccess
+			}
+		case "migrate":
+			if role == "Normal" {
+				return constant.ErrUnauthorizedAccess
 			}
 		}
 	}

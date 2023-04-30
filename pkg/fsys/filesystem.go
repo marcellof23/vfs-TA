@@ -1,9 +1,14 @@
 package fsys
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
+	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -50,6 +55,20 @@ func (fs *Filesystem) GetRootPath() string {
 
 // Filesystem Library
 
+// ChDir switches you to a different active directory.
+func (fs *Filesystem) ChDir(_ context.Context, dirName string) {
+	if dirName == "/" {
+		fs = root
+		return
+	}
+
+	fsVerified, err := fs.verifyPath(dirName)
+	if err != nil {
+		return
+	}
+	fs = fsVerified
+}
+
 // Pwd prints pwd() the current working directory.
 func (fs *Filesystem) Pwd() {
 	fmt.Println(fs.rootPath)
@@ -60,7 +79,7 @@ func (fs *Filesystem) Stat(filename string) (os.FileInfo, error) {
 	path := filepath.ToSlash(filepath.Join(fs.rootPath, filename))
 	info, err := fs.MFS.Stat(path)
 	if err != nil {
-		return nil, errors.New("file or Directory not found")
+		return nil, fmt.Errorf("cannot stat %s: ", filename)
 	}
 
 	return info, nil
@@ -481,6 +500,62 @@ func (fs *Filesystem) Cat(path string) error {
 	}
 
 	fmt.Println(string(data))
+	return nil
+}
+
+type MigrateResp struct {
+	Message string `json:"message"`
+	Error   string `json:"error"`
+}
+
+func (fs *Filesystem) Migrate(ctx context.Context, pathSource, pathDest string) error {
+	cli := []string{"gcs", "dos", "s3"}
+	clientSource := pathSource
+	if !contains(cli, clientSource) {
+		return errors.New("source cloud storage is not supported or not found")
+	}
+
+	clientDest := pathDest
+	if !contains(cli, clientDest) {
+		return errors.New("destination cloud storage is not supported or not found")
+	}
+
+	if clientSource == clientDest {
+		return errors.New("sis not supported or not foundource and destination cloud storage cannot be the same")
+	}
+
+	token, err := GetTokenFromContext(ctx)
+	if err != nil {
+		return err
+	}
+
+	// TODO: change localhost
+	migrateURL := constant.Protocol + "localhost:8080" + constant.ApiVer + "/migrate"
+
+	client := http.Client{}
+	var param = url.Values{}
+	param.Set("clientSource", clientSource)
+	param.Set("clientDest", clientDest)
+
+	var payload = bytes.NewBufferString(param.Encode())
+	req, err := http.NewRequest(http.MethodPost, migrateURL, payload)
+
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Set("token", token)
+	resp, err := client.Do(req)
+	if err != nil || resp.StatusCode != 200 {
+		return err
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	post := MigrateResp{}
+
+	err = json.Unmarshal(body, &post)
+	if err != nil {
+		return err
+	}
+
+	fmt.Println(post.Message)
 	return nil
 }
 
