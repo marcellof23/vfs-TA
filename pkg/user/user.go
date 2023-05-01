@@ -8,6 +8,7 @@ import (
 
 	"github.com/marcellof23/vfs-TA/constant"
 	"github.com/marcellof23/vfs-TA/pkg/fsys"
+	"github.com/marcellof23/vfs-TA/pkg/model"
 )
 
 // The main User object.
@@ -15,15 +16,28 @@ type User struct {
 	Username   string         // The User's onscreen name.
 	Token      string         // User token
 	Role       string         // User role
+	UserID     int            // User ID
+	GroupID    int            // Group ID
 	accessList map[string]int // A map containing the unique hashes and access rights for each file.
 }
 
-// createUser creates a User object.
-func createUser(username, role, token string) *User {
+// initiateUser creates a User object.
+func initiateUser(state model.UserState) *User {
 	return &User{
-		Username: username,
-		Role:     role,
-		Token:    token,
+		Username: state.Username,
+		Role:     state.Role,
+		Token:    state.Token,
+		UserID:   state.UserID,
+		GroupID:  state.GroupID,
+	}
+}
+func ToModelUserState(user *User) model.UserState {
+	return model.UserState{
+		Username: user.Username,
+		Role:     user.Role,
+		Token:    user.Token,
+		UserID:   user.UserID,
+		GroupID:  user.GroupID,
 	}
 }
 

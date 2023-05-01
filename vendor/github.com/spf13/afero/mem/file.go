@@ -113,6 +113,14 @@ func SetGID(f *FileData, gid int) {
 	f.Unlock()
 }
 
+func (f *FileData) GetUID() int {
+	return f.uid
+}
+
+func (f *FileData) GetGID() int {
+	return f.gid
+}
+
 func GetFileInfo(f *FileData) *FileInfo {
 	return &FileInfo{f}
 }

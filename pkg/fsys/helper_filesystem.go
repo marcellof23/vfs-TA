@@ -3,7 +3,6 @@ package fsys
 import (
 	"context"
 	"fmt"
-	"os"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -50,7 +49,7 @@ func SortDirs(m map[string]*Filesystem) []string {
 	return keys
 }
 
-func (fs *Filesystem) PrintStat(info os.FileInfo, filename string) {
+func (fs *Filesystem) PrintStat(info *FileInfo, filename string) {
 	if info != nil {
 		var tipe string
 		if info.IsDir() {
@@ -58,11 +57,15 @@ func (fs *Filesystem) PrintStat(info os.FileInfo, filename string) {
 		} else {
 			tipe = "File"
 		}
+
+		fmt.Printf("%v", info.Sys())
 		fmt.Println("File: ", info.Name())
 		fmt.Println("Size: ", info.Size())
 		fmt.Println("Access: ", info.Mode())
 		fmt.Println("Modify: ", info.ModTime())
 		fmt.Println("Type: ", tipe)
+		fmt.Println("UserID: ", info.Uid)
+		fmt.Println("GroupID: ", info.Gid)
 	}
 }
 

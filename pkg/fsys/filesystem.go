@@ -18,12 +18,15 @@ import (
 
 	"github.com/marcellof23/vfs-TA/boot"
 	"github.com/marcellof23/vfs-TA/constant"
+	"github.com/marcellof23/vfs-TA/pkg/model"
 	"github.com/marcellof23/vfs-TA/pkg/producer"
 )
 
 type file struct {
 	name     string // The name of the file.
 	rootPath string // The absolute path of the file.
+	uid      int
+	gid      int
 }
 
 type fileDir struct {
@@ -37,6 +40,12 @@ type fileDir struct {
 type Filesystem struct {
 	*boot.MemFilesystem
 	*fileDir
+}
+
+type FileInfo struct {
+	os.FileInfo
+	Uid int
+	Gid int
 }
 
 // Root node.
@@ -55,38 +64,36 @@ func (fs *Filesystem) GetRootPath() string {
 
 // Filesystem Library
 
-// ChDir switches you to a different active directory.
-func (fs *Filesystem) ChDir(_ context.Context, dirName string) {
-	if dirName == "/" {
-		fs = root
-		return
-	}
-
-	fsVerified, err := fs.verifyPath(dirName)
-	if err != nil {
-		return
-	}
-	fs = fsVerified
-}
-
 // Pwd prints pwd() the current working directory.
 func (fs *Filesystem) Pwd() {
 	fmt.Println(fs.rootPath)
 }
 
 // Stat gracefully ends the current session.
-func (fs *Filesystem) Stat(filename string) (os.FileInfo, error) {
+func (fs *Filesystem) Stat(filename string) (*FileInfo, error) {
 	path := filepath.ToSlash(filepath.Join(fs.rootPath, filename))
 	info, err := fs.MFS.Stat(path)
+
 	if err != nil {
 		return nil, fmt.Errorf("cannot stat %s: ", filename)
 	}
 
-	return info, nil
+	fileInfo := &FileInfo{
+		FileInfo: info,
+		Uid:      fs.MFS.Uid(path),
+		Gid:      fs.MFS.Gid(path),
+	}
+
+	return fileInfo, nil
 }
 
 // UploadFile uploads a file to the virtual Filesystem.
 func (fs *Filesystem) UploadFile(ctx context.Context, sourcePath, destPath string) error {
+	userState, ok := ctx.Value("userState").(model.UserState)
+	if !ok {
+		return errors.New("failed to get userState from context")
+	}
+
 	fl, err := os.Stat(sourcePath)
 	if err != nil {
 		return fmt.Errorf("file %s not found", sourcePath)
@@ -100,6 +107,7 @@ func (fs *Filesystem) UploadFile(ctx context.Context, sourcePath, destPath strin
 	destFile.Truncate(fl.Size())
 	destFile.Write(dat)
 	fs.MFS.Chmod(filepath.Clean(destPath), mode.Perm())
+	fs.MFS.Chown(filepath.Clean(destPath), userState.UserID, userState.GroupID)
 
 	token, err := GetTokenFromContext(ctx)
 	if err != nil {

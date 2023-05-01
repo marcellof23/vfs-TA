@@ -16,7 +16,7 @@ import (
 
 func New() *Filesystem {
 	// uncomment for recursively grab all files and directories from this level downwards.
-	root = replicateFilesystem(".", ".", nil)
+	root = replicateFilesystem(".", "output/backup", nil)
 
 	// uncomment for initiate empty virtual Filesystem
 	// root = makeFilesystem(".", ".", nil)

@@ -414,6 +414,32 @@ func (m *MemMapFs) Chtimes(name string, atime time.Time, mtime time.Time) error 
 	return nil
 }
 
+func (m *MemMapFs) Uid(name string) int {
+	name = normalizePath(name)
+
+	m.mu.RLock()
+	f, ok := m.getData()[name]
+	m.mu.RUnlock()
+	if !ok {
+		return 0
+	}
+
+	return f.GetUID()
+}
+
+func (m *MemMapFs) Gid(name string) int {
+	name = normalizePath(name)
+
+	m.mu.RLock()
+	f, ok := m.getData()[name]
+	m.mu.RUnlock()
+	if !ok {
+		return 0
+	}
+
+	return f.GetGID()
+}
+
 func (m *MemMapFs) List() {
 	for _, x := range m.data {
 		y := mem.FileInfo{FileData: x}

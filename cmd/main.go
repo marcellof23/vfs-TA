@@ -80,15 +80,15 @@ func init() {
 			ctx := context.WithValue(context.Background(), "server-logger", logger)
 
 			currentUser := user.InitUser(dep)
-			ctx = context.WithValue(ctx, "username", currentUser.Username)
 			ctx = context.WithValue(ctx, "role", currentUser.Role)
 			ctx = context.WithValue(ctx, "token", currentUser.Token)
+			ctx = context.WithValue(ctx, "userState", user.ToModelUserState(currentUser))
 
-			// err = LoadFilesystem(ctx, dep, currentUser.Token)
-			// if err != nil {
-			// 	logger.Println("ERROR: ", err)
-			// 	return
-			// }
+			err = LoadFilesystem(ctx, dep, currentUser.Token)
+			if err != nil {
+				logger.Println("ERROR: ", err)
+				return
+			}
 
 			shellLoop(ctx, currentUser)
 		},

@@ -12,6 +12,7 @@ import (
 
 	"github.com/marcellof23/vfs-TA/boot"
 	"github.com/marcellof23/vfs-TA/constant"
+	"github.com/marcellof23/vfs-TA/pkg/model"
 )
 
 type Credentials struct {
@@ -19,16 +20,12 @@ type Credentials struct {
 	Password string `json:"password"`
 }
 
-type UserState struct {
-	Username string `json:"username"`
-	Role     string `json:"token"'`
-	Token    string `json:"token"'`
-}
-
 type UserResp struct {
 	Data struct {
-		Username string `json:"username"`
-		Role     string `json:"role"`
+		Username string `json:"Username"`
+		UserID   int    `json:"ID"`
+		GroupID  int    `json:"GroupID"`
+		Role     string `json:"Role"`
 	} `json:"data"`
 	Token string `json:"token"`
 }
@@ -57,12 +54,12 @@ func authLoop() string {
 	return input
 }
 
-func register(dep *boot.Dependencies) UserState {
+func register(dep *boot.Dependencies) model.UserState {
 	line, err := readline.New(">")
 	if err != nil {
 		log.Fatal(err)
 	}
-	var userState UserState
+	var userState model.UserState
 
 	var resp *http.Response
 	for {
@@ -73,11 +70,11 @@ func register(dep *boot.Dependencies) UserState {
 		}
 
 		fmt.Println("Please enter a Password:")
-		pass, err := line.Readline()
+		pass, err := line.ReadPassword(">")
 		if err != nil {
 			log.Fatal(err)
 		}
-		values := Credentials{Username: uname, Password: pass}
+		values := Credentials{Username: uname, Password: string(pass)}
 		jsonValue, _ := json.Marshal(values)
 
 		registerURL := constant.Protocol + dep.Config().Server.Addr + constant.ApiVer + "/user/sign-up"
@@ -86,7 +83,7 @@ func register(dep *boot.Dependencies) UserState {
 			"application/json",
 			bytes.NewBuffer(jsonValue))
 		if resp.StatusCode != http.StatusOK {
-			fmt.Println("Enter a valid username and password	")
+			fmt.Println("Enter a valid username and password\n")
 			continue
 		}
 
@@ -99,10 +96,12 @@ func register(dep *boot.Dependencies) UserState {
 			continue
 		}
 
-		userState = UserState{
+		userState = model.UserState{
 			Username: post.Data.Username,
 			Role:     post.Data.Role,
 			Token:    post.Token,
+			UserID:   post.Data.UserID,
+			GroupID:  post.Data.GroupID,
 		}
 		break
 	}
@@ -111,8 +110,8 @@ func register(dep *boot.Dependencies) UserState {
 }
 
 // login gets a custom Username from the current User.
-func login(dep *boot.Dependencies) UserState {
-	var userState UserState
+func login(dep *boot.Dependencies) model.UserState {
+	var userState model.UserState
 	line, err := readline.New(">")
 	if err != nil {
 		log.Fatal(err)
@@ -153,10 +152,12 @@ func login(dep *boot.Dependencies) UserState {
 			continue
 		}
 
-		userState = UserState{
+		userState = model.UserState{
 			Username: post.Data.Username,
 			Role:     post.Data.Role,
 			Token:    post.Token,
+			UserID:   post.Data.UserID,
+			GroupID:  post.Data.GroupID,
 		}
 		break
 	}
@@ -166,15 +167,14 @@ func login(dep *boot.Dependencies) UserState {
 
 // initUser initializes the User object on startup.
 func InitUser(dep *boot.Dependencies) *User {
-	var userState UserState
-	// command := authLoop()
-	// if command == "register" {
-	// 	userState = register(dep)
-	// } else if command == "login" {
-	// 	userState = login(dep)
-	// }
+	var userState model.UserState
+	command := authLoop()
+	if command == "register" {
+		userState = register(dep)
+	} else if command == "login" {
+		userState = login(dep)
+	}
 
-	currentUser := createUser(userState.Username, userState.Role, userState.Token)
-	currentUser = createUser("hehe", "Admin", "asdfasdf")
+	currentUser := initiateUser(userState)
 	return currentUser
 }

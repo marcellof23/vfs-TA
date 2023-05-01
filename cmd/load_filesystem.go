@@ -11,13 +11,14 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"syscall"
 
 	"github.com/marcellof23/vfs-TA/boot"
 	"github.com/marcellof23/vfs-TA/constant"
 )
 
 func LoadFilesystem(ctx context.Context, dep *boot.Dependencies, token string) error {
-	//syscall.Umask(0)
+	syscall.Umask(0)
 	dst := "output"
 
 	backupURL := constant.Protocol + dep.Config().Server.Addr + constant.ApiVer + "/backup"
