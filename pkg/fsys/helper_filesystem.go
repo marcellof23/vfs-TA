@@ -184,6 +184,7 @@ func (fs *Filesystem) absPath(pathname string) string {
 
 	absPath := prefixPath + pathname
 	absPath = filepath.Clean(absPath)
+	absPath = filepath.ToSlash(absPath)
 	return absPath
 }
 
@@ -252,7 +253,7 @@ func walkDir(fsys *Filesystem, path string, walkDirFn WalkDirFunc) error {
 
 	if len(fsys.directories) > 0 {
 		for dirName := range fsys.directories {
-			name1 := filepath.Join(path, dirName)
+			name1 := filepath.ToSlash(filepath.Join(path, dirName))
 			if err := walkDir(fsys.directories[dirName], name1, walkDirFn); err != nil {
 				return err
 			}

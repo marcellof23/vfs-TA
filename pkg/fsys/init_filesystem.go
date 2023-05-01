@@ -16,7 +16,7 @@ import (
 
 func New() *Filesystem {
 	// uncomment for recursively grab all files and directories from this level downwards.
-	root = replicateFilesystem(".", "output/backup", nil)
+	root = replicateFilesystem(".", ".", nil)
 
 	// uncomment for initiate empty virtual Filesystem
 	// root = makeFilesystem(".", ".", nil)
@@ -98,7 +98,6 @@ func replicateFilesystem(dirName, replicatePath string, fs *Filesystem) *Filesys
 			dirname := fileName.Name()
 			fs.directories[dirname] = makeFilesystem(dirname, strings.ReplaceAll(dirName, "//", "/")+"/"+fileName.Name(), fs, fs.MemFilesystem)
 			fs.MFS.Mkdir(filepath.ToSlash(filepath.Join(fs.rootPath, dirname)), mode)
-
 			replicateFilesystem(dirName+"/"+fileName.Name(), replicatePath+"/"+fileName.Name(), fs.directories[fileName.Name()])
 		} else {
 			fs.files[fileName.Name()] = &file{

@@ -388,7 +388,7 @@ func (fs *Filesystem) CopyDir(ctx context.Context, pathSource, pathDest string) 
 		} else {
 			splitPaths := strings.Split(rootPath, "/")
 			splitPaths = splitPaths[1:]
-			remainingPath := filepath.Join(splitPaths...)
+			remainingPath := filepath.ToSlash(filepath.Join(splitPaths...))
 
 			newFile := filepath.ToSlash(filepath.Join(pathDest, remainingPath, path))
 			fs.CopyFile(ctx, filepath.ToSlash(filepath.Join(rootPath, path)), newFile)

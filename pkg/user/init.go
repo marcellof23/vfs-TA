@@ -167,13 +167,14 @@ func login(dep *boot.Dependencies) UserState {
 // initUser initializes the User object on startup.
 func InitUser(dep *boot.Dependencies) *User {
 	var userState UserState
-	command := authLoop()
-	if command == "register" {
-		userState = register(dep)
-	} else if command == "login" {
-		userState = login(dep)
-	}
+	// command := authLoop()
+	// if command == "register" {
+	// 	userState = register(dep)
+	// } else if command == "login" {
+	// 	userState = login(dep)
+	// }
 
 	currentUser := createUser(userState.Username, userState.Role, userState.Token)
+	currentUser = createUser("hehe", "Admin", "asdfasdf")
 	return currentUser
 }

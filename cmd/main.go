@@ -84,11 +84,11 @@ func init() {
 			ctx = context.WithValue(ctx, "role", currentUser.Role)
 			ctx = context.WithValue(ctx, "token", currentUser.Token)
 
-			err = LoadFilesystem(ctx, dep, currentUser.Token)
-			if err != nil {
-				logger.Println("ERROR: ", err)
-				return
-			}
+			// err = LoadFilesystem(ctx, dep, currentUser.Token)
+			// if err != nil {
+			// 	logger.Println("ERROR: ", err)
+			// 	return
+			// }
 
 			shellLoop(ctx, currentUser)
 		},
