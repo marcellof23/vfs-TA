@@ -82,6 +82,8 @@ func init() {
 			currentUser := user.InitUser(dep)
 			ctx = context.WithValue(ctx, "role", currentUser.Role)
 			ctx = context.WithValue(ctx, "token", currentUser.Token)
+			ctx = context.WithValue(ctx, "host", dep.Config().Server.Addr)
+			ctx = context.WithValue(ctx, "clients", dep.Config().Clients)
 			ctx = context.WithValue(ctx, "userState", user.ToModelUserState(currentUser))
 
 			err = LoadFilesystem(ctx, dep, currentUser.Token)

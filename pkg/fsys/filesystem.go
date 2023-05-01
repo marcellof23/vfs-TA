@@ -517,14 +517,28 @@ type MigrateResp struct {
 }
 
 func (fs *Filesystem) Migrate(ctx context.Context, pathSource, pathDest string) error {
-	cli := []string{"gcs", "dos", "s3"}
+	token, err := GetTokenFromContext(ctx)
+	if err != nil {
+		return err
+	}
+
+	host, err := GetHostFromContext(ctx)
+	if err != nil {
+		return err
+	}
+
+	clients, err := GetClientsFromContext(ctx)
+	if err != nil {
+		return err
+	}
+
 	clientSource := pathSource
-	if !contains(cli, clientSource) {
+	if !contains(clients, clientSource) {
 		return errors.New("source cloud storage is not supported or not found")
 	}
 
 	clientDest := pathDest
-	if !contains(cli, clientDest) {
+	if !contains(clients, clientDest) {
 		return errors.New("destination cloud storage is not supported or not found")
 	}
 
@@ -532,13 +546,8 @@ func (fs *Filesystem) Migrate(ctx context.Context, pathSource, pathDest string) 
 		return errors.New("sis not supported or not foundource and destination cloud storage cannot be the same")
 	}
 
-	token, err := GetTokenFromContext(ctx)
-	if err != nil {
-		return err
-	}
-
 	// TODO: change localhost
-	migrateURL := constant.Protocol + "localhost:8080" + constant.ApiVer + "/migrate"
+	migrateURL := constant.Protocol + host + constant.ApiVer + "/migrate"
 
 	client := http.Client{}
 	var param = url.Values{}

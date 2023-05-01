@@ -11,6 +11,7 @@ type Config struct {
 	Server struct {
 		Addr string `yaml:"addr"`
 	} `yaml:"server"`
+	Clients []string `yaml:"clients"`
 }
 
 func LoadConfig(file string) (Config, error) {

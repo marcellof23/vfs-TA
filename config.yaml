@@ -1,3 +1,7 @@
 # Server Config
 server:
   addr: 'localhost:8080'
+clients:
+  - 'gcs'
+  - 'dos'
+  - 's3'

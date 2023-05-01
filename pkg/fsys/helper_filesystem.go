@@ -21,6 +21,24 @@ func GetTokenFromContext(c context.Context) (string, error) {
 	return token, nil
 }
 
+func GetClientsFromContext(c context.Context) ([]string, error) {
+	tmp := c.Value("clients")
+	clients, ok := tmp.([]string)
+	if !ok {
+		return []string{}, constant.ErrTokenNotFound
+	}
+	return clients, nil
+}
+
+func GetHostFromContext(c context.Context) (string, error) {
+	tmp := c.Value("host")
+	host, ok := tmp.(string)
+	if !ok {
+		return "", constant.ErrTokenNotFound
+	}
+	return host, nil
+}
+
 func SortFiles(m map[string]*file) []string {
 	keys := make([]string, 0, len(m))
 
@@ -164,6 +182,7 @@ func (fs *Filesystem) isDir(pathname string) (bool, error) {
 
 	absPath := prefixPath + pathname
 	absPath = filepath.Clean(absPath)
+	absPath = filepath.ToSlash(absPath)
 	info, err := fs.MFS.Stat(absPath)
 	if err != nil {
 		return false, err
@@ -219,7 +238,7 @@ func (fs *Filesystem) doesDirExistAbsPath(pathName string) bool {
 			return true
 		}
 	} else {
-		info, err := fs.MFS.Stat(filepath.Join(fs.rootPath, pathName))
+		info, err := fs.MFS.Stat(filepath.ToSlash(filepath.Join(fs.rootPath, pathName)))
 		if err == nil && info.IsDir() {
 			return true
 		}
@@ -234,7 +253,7 @@ func (fs *Filesystem) doesFileExistsAbsPath(pathName string) bool {
 			return true
 		}
 	} else {
-		info, err := fs.MFS.Stat(filepath.Join(fs.rootPath, pathName))
+		info, err := fs.MFS.Stat(filepath.ToSlash(filepath.Join(fs.rootPath, pathName)))
 		if err == nil && !info.IsDir() {
 			return true
 		}
