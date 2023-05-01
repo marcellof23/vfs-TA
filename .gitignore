@@ -13,4 +13,5 @@ vendor/github.com/spf13/*
 
 .idea
 error-log
+server-log
 output
