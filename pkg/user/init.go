@@ -127,11 +127,11 @@ func login(dep *boot.Dependencies) UserState {
 		}
 
 		fmt.Println("Please enter a Password:")
-		pass, err := line.Readline()
+		pass, err := line.ReadPassword(">")
 		if err != nil {
 			log.Fatal(err)
 		}
-		values := Credentials{Username: uname, Password: pass}
+		values := Credentials{Username: uname, Password: string(pass)}
 		jsonValue, _ := json.Marshal(values)
 
 		loginURL := constant.Protocol + dep.Config().Server.Addr + constant.ApiVer + "/user/login"
@@ -140,7 +140,7 @@ func login(dep *boot.Dependencies) UserState {
 			"application/json",
 			bytes.NewBuffer(jsonValue))
 		if err != nil || resp.StatusCode != http.StatusOK {
-			fmt.Println("Username or password is invalid")
+			fmt.Println("Username or password is invalid\n")
 			continue
 		}
 
