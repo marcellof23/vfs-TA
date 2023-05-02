@@ -171,7 +171,7 @@ func (m *MemMapFs) MkdirAll(path string, perm os.FileMode) error {
 // Handle some relative paths
 func normalizePath(path string) string {
 	path = filepath.Clean(path)
-	path = filepath.ToSlash(path)
+
 	switch path {
 	case ".":
 		return FilePathSeparator
@@ -414,6 +414,13 @@ func (m *MemMapFs) Chtimes(name string, atime time.Time, mtime time.Time) error 
 	return nil
 }
 
+func (m *MemMapFs) List() {
+	for _, x := range m.data {
+		y := mem.FileInfo{FileData: x}
+		fmt.Println(x.Name(), y.Size())
+	}
+}
+
 func (m *MemMapFs) Uid(name string) int {
 	name = normalizePath(name)
 
@@ -438,11 +445,4 @@ func (m *MemMapFs) Gid(name string) int {
 	}
 
 	return f.GetGID()
-}
-
-func (m *MemMapFs) List() {
-	for _, x := range m.data {
-		y := mem.FileInfo{FileData: x}
-		fmt.Println(x.Name(), y.Size())
-	}
 }
