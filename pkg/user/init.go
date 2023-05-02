@@ -82,7 +82,7 @@ func register(dep *boot.Dependencies) model.UserState {
 			registerURL,
 			"application/json",
 			bytes.NewBuffer(jsonValue))
-		if resp.StatusCode != http.StatusOK {
+		if err != nil || resp.StatusCode != http.StatusOK {
 			fmt.Println("Enter a valid username and password\n")
 			continue
 		}

@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"syscall"
 
@@ -18,7 +19,9 @@ import (
 )
 
 func LoadFilesystem(ctx context.Context, dep *boot.Dependencies, token string) error {
-	syscall.Umask(0)
+	if runtime.GOOS == "linux" {
+		syscall.Umask(0)
+	}
 	dst := "output"
 
 	backupURL := constant.Protocol + dep.Config().Server.Addr + constant.ApiVer + "/backup"
@@ -27,7 +30,7 @@ func LoadFilesystem(ctx context.Context, dep *boot.Dependencies, token string) e
 	req, err := http.NewRequest(http.MethodGet, backupURL, nil)
 	req.Header.Set("token", token)
 	resp, err := client.Do(req)
-	if err != nil || resp.StatusCode != 200 {
+	if err != nil || resp.StatusCode != http.StatusOK {
 		return err
 	}
 
