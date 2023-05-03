@@ -1,9 +1,14 @@
 package fsys
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
+	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -86,6 +91,7 @@ func (fs *Filesystem) Stat(filename string) (*FileInfo, error) {
 
 // UploadFile uploads a file to the virtual Filesystem.
 func (fs *Filesystem) UploadFile(ctx context.Context, sourcePath, destPath string) error {
+	destFS, _ := fs.searchFS2(destPath)
 	userState, ok := ctx.Value("userState").(model.UserState)
 	if !ok {
 		return errors.New("failed to get userState from context")
@@ -115,7 +121,7 @@ func (fs *Filesystem) UploadFile(ctx context.Context, sourcePath, destPath strin
 		Command:       "upload",
 		Token:         token,
 		AbsPathSource: destFile.Name(),
-		AbsPathDest:   destFile.Name(),
+		AbsPathDest:   destFS.rootPath,
 		Buffer:        dat,
 	}
 
@@ -129,8 +135,14 @@ func (fs *Filesystem) UploadFile(ctx context.Context, sourcePath, destPath strin
 func (fs *Filesystem) UploadDir(ctx context.Context, sourcePath, destPath string) error {
 	fsDest, _ := fs.searchFS(destPath)
 
+	userState, ok := ctx.Value("userState").(model.UserState)
+	if !ok {
+		return constant.ErrUserStateNotFound
+	}
+
 	destPathBase := filepath.Base(destPath)
 	fsDest.MkDir(ctx, destPathBase)
+	fsDest.MFS.Chown(destPathBase, userState.UserID, userState.GroupID)
 	fsDest = fsDest.directories[destPathBase]
 
 	copyFilesystem(ctx, ".", sourcePath, fs.absPath(destPath), fsDest)
@@ -303,7 +315,9 @@ func (fs *Filesystem) RemoveDir(ctx context.Context, dirname string) error {
 		return err
 	}
 	baseDirName := filepath.Base(dirname)
-	delete(fsTarget.prev.directories, baseDirName)
+	if fsTarget.prev != nil {
+		delete(fsTarget.prev.directories, baseDirName)
+	}
 
 	err = fs.MFS.RemoveAll(dirname)
 	if err != nil {
@@ -514,66 +528,71 @@ type MigrateResp struct {
 }
 
 func (fs *Filesystem) Migrate(ctx context.Context, pathSource, pathDest string) error {
-	s := spinner.New(spinner.CharSets[14], 100*time.Millisecond) // Build our new spinner
-	s.Start()                                                    // Start the spinner
-	time.Sleep(4 * time.Second)                                  // Run for some time to simulate work
-	s.Stop()
-	//token, err := GetTokenFromContext(ctx)
-	//if err != nil {
-	//	return err
-	//}
-	//
-	//host, err := GetHostFromContext(ctx)
-	//if err != nil {
-	//	return err
-	//}
-	//
-	//clients, err := GetClientsFromContext(ctx)
-	//if err != nil {
-	//	return err
-	//}
-	//
-	//clientSource := pathSource
-	//if !contains(clients, clientSource) {
-	//	return errors.New("source cloud storage is not supported or not found")
-	//}
-	//
-	//clientDest := pathDest
-	//if !contains(clients, clientDest) {
-	//	return errors.New("destination cloud storage is not supported or not found")
-	//}
-	//
-	//if clientSource == clientDest {
-	//	return errors.New("sis not supported or not foundource and destination cloud storage cannot be the same")
-	//}
-	//
-	//// TODO: change localhost
-	//migrateURL := constant.Protocol + host + constant.ApiVer + "/migrate"
-	//
-	//client := http.Client{}
-	//var param = url.Values{}
-	//param.Set("clientSource", clientSource)
-	//param.Set("clientDest", clientDest)
-	//
-	//var payload = bytes.NewBufferString(param.Encode())
-	//req, err := http.NewRequest(http.MethodPost, migrateURL, payload)
-	//
-	//req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	//req.Header.Set("token", token)
-	//resp, err := client.Do(req)
-	//if err != nil || resp.StatusCode != 200 {
-	//	return err
-	//}
-	//
-	//body, err := io.ReadAll(resp.Body)
-	//post := MigrateResp{}
-	//
-	//err = json.Unmarshal(body, &post)
-	//if err != nil {
-	//	return err
-	//}
-	//
-	//fmt.Println(post.Message)
+	s := spinner.New(spinner.CharSets[14], 150*time.Millisecond) // Build our new spinner
+	s.Start()
+	s.Suffix = fmt.Sprintf(" Migrating in progress...") // Start the spinner
+	// Run for some time to simulate work
+
+	token, err := GetTokenFromContext(ctx)
+	if err != nil {
+		return err
+	}
+
+	host, err := GetHostFromContext(ctx)
+	if err != nil {
+		return err
+	}
+
+	clients, err := GetClientsFromContext(ctx)
+	if err != nil {
+		return err
+	}
+
+	clientSource := pathSource
+	if !contains(clients, clientSource) {
+		return errors.New("source cloud storage is not supported or not found")
+	}
+
+	clientDest := pathDest
+	if !contains(clients, clientDest) {
+		return errors.New("destination cloud storage is not supported or not found")
+	}
+
+	if clientSource == clientDest {
+		return errors.New("sis not supported or not foundource and destination cloud storage cannot be the same")
+	}
+
+	// TODO: change localhost
+	migrateURL := constant.Protocol + host + constant.ApiVer + "/migrate"
+
+	client := http.Client{}
+	var param = url.Values{}
+	param.Set("clientSource", clientSource)
+	param.Set("clientDest", clientDest)
+
+	var payload = bytes.NewBufferString(param.Encode())
+	req, err := http.NewRequest(http.MethodPost, migrateURL, payload)
+
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Set("token", token)
+	resp, err := client.Do(req)
+	if err != nil || resp.StatusCode != 200 {
+		return err
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	post := MigrateResp{}
+
+	err = json.Unmarshal(body, &post)
+	if err != nil {
+		return err
+	}
+
+	defer func() {
+		s.Stop()
+		fmt.Println(post.Message)
+	}()
+
 	return nil
 }
 

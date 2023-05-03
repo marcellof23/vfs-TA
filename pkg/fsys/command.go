@@ -20,7 +20,7 @@ func (fs *Filesystem) Usage(comms []string) bool {
 			return false
 		}
 	case "pwd":
-		if len(comms) >= 1 {
+		if len(comms) > 1 {
 			fmt.Println(constant.UsageCommandPwd)
 			return false
 		}

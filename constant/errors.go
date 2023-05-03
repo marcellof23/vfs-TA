@@ -12,6 +12,7 @@ var (
 	ErrTokenNotFound      = errors.New("failed to get token from context")
 	ErrHostNotFound       = errors.New("failed to get host from context")
 	ErrClientsNotFound    = errors.New("failed to get client list from context")
+	ErrUserStateNotFound  = errors.New("failed to get user state list from context")
 )
 
 func Errorf(format string, a ...interface{}) error {

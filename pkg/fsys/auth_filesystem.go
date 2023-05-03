@@ -184,7 +184,7 @@ func (fs *Filesystem) FilesystemAccessAuth(role string, isRec bool, command stri
 					return constant.ErrUnauthorizedAccess
 				}
 
-				if !checkAccess(dstAccess, "r-x") {
+				if !checkAccess(dstAccess, "rw-") {
 					return constant.ErrUnauthorizedAccess
 				}
 			} else {
@@ -213,7 +213,7 @@ func (fs *Filesystem) FilesystemAccessAuth(role string, isRec bool, command stri
 			}
 		case "upload":
 			if isRec {
-				if !checkAccess(dstAccess, "r-x") {
+				if !checkAccess(dstAccess, "-wx") {
 					return constant.ErrUnauthorizedAccess
 				}
 			} else {
@@ -241,14 +241,8 @@ func (fs *Filesystem) FilesystemAccessAuth(role string, isRec bool, command stri
 				return constant.ErrUnauthorizedAccess
 			}
 		case "cat":
-			if isRec {
-				if !checkAccess(srcAccess, "-wx") {
-					return constant.ErrUnauthorizedAccess
-				}
-			} else {
-				if !checkAccess(srcAccess, "-wx") {
-					return constant.ErrUnauthorizedAccess
-				}
+			if !checkAccess(srcAccess, "r--") {
+				return constant.ErrUnauthorizedAccess
 			}
 		case "cd":
 			if !checkAccess(srcAccess, "--x") {
