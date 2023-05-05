@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"net/url"
 	"os"
@@ -19,6 +20,7 @@ import (
 	"github.com/spf13/afero"
 
 	"github.com/marcellof23/vfs-TA/boot"
+	"github.com/marcellof23/vfs-TA/cmd/vfs/load"
 	"github.com/marcellof23/vfs-TA/constant"
 	"github.com/marcellof23/vfs-TA/pkg/model"
 	"github.com/marcellof23/vfs-TA/pkg/producer"
@@ -522,6 +524,73 @@ func (fs *Filesystem) Cat(path string) error {
 	return nil
 }
 
+func (fs *Filesystem) DownloadFile(ctx context.Context, pathSource, pathDest string) error {
+	pathSource = fs.absPath(pathSource)
+	data, err := afero.ReadFile(fs.MFS, pathSource)
+	if err != nil {
+		return err
+	}
+
+	f, err := os.Create(pathDest)
+	if err != nil {
+		return err
+	}
+
+	defer f.Close()
+
+	_, err = f.Write(data)
+
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (fs *Filesystem) DownloadRecursive(ctx context.Context, pathSource, pathDest string) error {
+	fsSource, _ := fs.searchFS(pathSource)
+
+	pathSource = filepath.Base(pathSource)
+
+	walkFn := func(rootPath, path string, _ *Filesystem, err error) error {
+		if path == "" {
+			return nil
+		}
+		if isDir, _ := fs.isDir(path); isDir {
+			splitPaths := strings.Split(path, "/")
+			splitPaths = splitPaths[1:]
+			remainingPath := filepath.ToSlash(filepath.Join(splitPaths...))
+
+			newDir := filepath.ToSlash(filepath.Join(pathDest, remainingPath))
+			os.MkdirAll(newDir, 0o777)
+		} else {
+			splitPaths := strings.Split(rootPath, "/")
+			splitPaths = splitPaths[1:]
+			remainingPath := filepath.ToSlash(filepath.Join(splitPaths...))
+
+			newFile := filepath.ToSlash(filepath.Join(pathDest, remainingPath, path))
+
+			os.Create(newFile)
+
+			pathSourceFileName := fs.absPath(filepath.ToSlash(filepath.Join(rootPath, path)))
+			sourceFile, _ := fs.MFS.Open(pathSourceFileName)
+			stat, _ := sourceFile.Stat()
+			b := make([]byte, stat.Size())
+			sourceFile.Read(b)
+			os.WriteFile(newFile, b, stat.Mode())
+
+		}
+		return nil
+	}
+
+	err := walkDir(fsSource, pathSource, walkFn)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 type MigrateResp struct {
 	Message string `json:"message"`
 	Error   string `json:"error"`
@@ -612,8 +681,29 @@ func (fs *Filesystem) SaveState() {
 
 // ReloadFilesys Resets the VFS and scraps all changes made up to this point.
 // (basically like a rerun of InitFilesystem())
-func (fs *Filesystem) ReloadFilesys() {
-	fmt.Println("Refreshing...")
+func (fs *Filesystem) ReloadFilesys(ctx context.Context) error {
+	log, ok := ctx.Value("server-logger").(*log.Logger)
+	if !ok {
+		return fmt.Errorf("ERROR: logger not initiated")
+	}
+
+	userState, ok := ctx.Value("userState").(model.UserState)
+	if !ok {
+		return errors.New("failed to get userState from context")
+	}
+
+	dep, ok := ctx.Value("dependency").(*boot.Dependencies)
+	if !ok {
+		return errors.New("failed to get dependency from context")
+	}
+
+	err := load.LoadFilesystem(ctx, dep, userState.Token)
+	if err != nil {
+		log.Println("ERROR: ", err)
+		return errors.New("LLoad new filesysytem")
+	}
+
+	return nil
 }
 
 // TearDown gracefully ends the current session.

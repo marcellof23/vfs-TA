@@ -1,4 +1,4 @@
-package cmd
+package load
 
 import (
 	"archive/zip"
@@ -15,6 +15,7 @@ import (
 
 	"github.com/marcellof23/vfs-TA/boot"
 	"github.com/marcellof23/vfs-TA/constant"
+	"github.com/marcellof23/vfs-TA/pkg/fsys"
 )
 
 func LoadFilesystem(ctx context.Context, dep *boot.Dependencies, token string) error {
@@ -51,7 +52,7 @@ func LoadFilesystem(ctx context.Context, dep *boot.Dependencies, token string) e
 	}
 
 	for _, f := range zipReader.File {
-		filePath := filepath.Join(dst, f.Name)
+		filePath := fsys.JoinPath(dst, f.Name)
 
 		if !strings.HasPrefix(filePath, filepath.Clean(dst)+string(os.PathSeparator)) {
 			//fmt.Println("invalid file path")

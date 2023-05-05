@@ -202,14 +202,8 @@ func (fs *Filesystem) FilesystemAccessAuth(role string, isRec bool, command stri
 				}
 			}
 		case "rm":
-			if isRec {
-				if !checkAccess(srcAccess, "-wx") {
-					return constant.ErrUnauthorizedAccess
-				}
-			} else {
-				if !checkAccess(srcAccess, "-wx") {
-					return constant.ErrUnauthorizedAccess
-				}
+			if !checkAccess(srcAccess, "-wx") {
+				return constant.ErrUnauthorizedAccess
 			}
 		case "upload":
 			if isRec {
@@ -246,6 +240,10 @@ func (fs *Filesystem) FilesystemAccessAuth(role string, isRec bool, command stri
 			}
 		case "cd":
 			if !checkAccess(srcAccess, "--x") {
+				return constant.ErrUnauthorizedAccess
+			}
+		case "download":
+			if !checkAccess(srcAccess, "r--") {
 				return constant.ErrUnauthorizedAccess
 			}
 		case "chmod":

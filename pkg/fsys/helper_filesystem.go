@@ -294,3 +294,9 @@ func contains(s []string, str string) bool {
 
 	return false
 }
+
+func JoinPath(path ...string) string {
+	joinedPath := filepath.Join(path...)
+	unixPath := filepath.ToSlash(joinedPath)
+	return unixPath
+}

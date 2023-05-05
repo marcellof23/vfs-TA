@@ -10,6 +10,8 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/marcellof23/vfs-TA/boot"
+	"github.com/marcellof23/vfs-TA/cmd/vfs/load"
+
 	"github.com/marcellof23/vfs-TA/pkg/fsys"
 	"github.com/marcellof23/vfs-TA/pkg/user"
 )
@@ -41,7 +43,11 @@ func shellLoop(ctx context.Context, currentUser *user.User) {
 		}
 
 		// Execute the command for filesystem
-		shellFlag = Fsys.Execute(ctx, commands)
+		isReload, shellFlag := Fsys.Execute(ctx, commands)
+		if isReload == "reload" {
+			Fsys = fsys.New()
+			os.RemoveAll("output")
+		}
 		currentUser.SetPrompt(prompt, Fsys)
 
 		shells.SetFilesystem(Fsys)
@@ -84,9 +90,10 @@ func init() {
 			ctx = context.WithValue(ctx, "token", currentUser.Token)
 			ctx = context.WithValue(ctx, "host", dep.Config().Server.Addr)
 			ctx = context.WithValue(ctx, "clients", dep.Config().Clients)
+			ctx = context.WithValue(ctx, "dependency", dep)
 			ctx = context.WithValue(ctx, "userState", user.ToModelUserState(currentUser))
 
-			err = LoadFilesystem(ctx, dep, currentUser.Token)
+			err = load.LoadFilesystem(ctx, dep, currentUser.Token)
 			if err != nil {
 				logger.Println("ERROR: ", err)
 				return

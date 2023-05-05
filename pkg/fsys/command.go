@@ -64,21 +64,26 @@ func (fs *Filesystem) Usage(comms []string) bool {
 			fmt.Println(constant.UsageCommandUpload)
 			return false
 		}
+	case "download":
+		if len(comms) < 3 {
+			fmt.Println(constant.UsageCommandLs)
+			return false
+		}
 	}
 	return true
 }
 
 // Execute runs the commands passed into it.
-func (fs *Filesystem) Execute(ctx context.Context, comms []string) bool {
+func (fs *Filesystem) Execute(ctx context.Context, comms []string) (string, bool) {
 	var err error
 	if fs.Usage(comms) == false {
-		return false
+		return "", false
 	}
 
 	role, ok := ctx.Value("role").(string)
 	if !ok {
 		fmt.Println("User is not authorized!")
-		return false
+		return "", false
 	}
 
 	switch comms[0] {
@@ -118,19 +123,32 @@ func (fs *Filesystem) Execute(ctx context.Context, comms []string) bool {
 		}
 	case "migrate":
 		err = fs.FilesystemAccessAuth(role, false, comms[0], fs.Migrate, ctx, comms[1], comms[2])
+	case "download":
+
+		if comms[1] == "-r" {
+			err = fs.FilesystemAccessAuth(role, true, comms[0], fs.DownloadRecursive, ctx, comms[2], comms[3])
+		} else {
+			err = fs.FilesystemAccessAuth(role, false, comms[0], fs.DownloadFile, ctx, comms[1], comms[2])
+		}
 	case "test":
 		fs.Testing(comms[1])
+	case "reload":
+		err = fs.ReloadFilesys(ctx)
+		if err != nil {
+			fmt.Println(err.Error())
+		}
+		return "reload", true
 	case "exit":
 		fs.TearDown()
 		os.Exit(1)
 	default:
 		fmt.Println(comms[0], ": Command not found")
-		return false
+		return "", false
 	}
 	if err != nil {
 		fmt.Println(err.Error())
 	}
-	return true
+	return "", true
 }
 
 // Shell Commands
