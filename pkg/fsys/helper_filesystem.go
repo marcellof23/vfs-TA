@@ -8,9 +8,19 @@ import (
 	"strings"
 
 	"github.com/marcellof23/vfs-TA/constant"
+	"github.com/marcellof23/vfs-TA/pkg/model"
 )
 
 type WalkDirFunc func(path, filename string, fs *Filesystem, err error) error
+
+func GetUserStateFromContext(c context.Context) (model.UserState, error) {
+	tmp := c.Value("userState")
+	userState, ok := tmp.(model.UserState)
+	if !ok {
+		return model.UserState{}, constant.ErrUserStateNotFound
+	}
+	return userState, nil
+}
 
 func GetTokenFromContext(c context.Context) (string, error) {
 	tmp := c.Value("token")
@@ -34,7 +44,7 @@ func GetHostFromContext(c context.Context) (string, error) {
 	tmp := c.Value("host")
 	host, ok := tmp.(string)
 	if !ok {
-		return "", constant.ErrTokenNotFound
+		return "", constant.ErrHostNotFound
 	}
 	return host, nil
 }
@@ -76,7 +86,6 @@ func (fs *Filesystem) PrintStat(info *FileInfo, filename string) {
 			tipe = "File"
 		}
 
-		fmt.Printf("%v", info.Sys())
 		fmt.Println("File: ", info.Name())
 		fmt.Println("Size: ", info.Size())
 		fmt.Println("Access: ", info.Mode())

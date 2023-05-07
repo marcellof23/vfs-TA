@@ -22,7 +22,7 @@ func shellLoop(ctx context.Context, currentUser *user.User) {
 	Fsys := fsys.New()
 	prompt := currentUser.InitPrompt()
 	shells := fsys.InitShell(Fsys)
-	os.RemoveAll("output")
+	os.RemoveAll("backup")
 
 	for {
 		input, _ := prompt.Readline()
@@ -37,23 +37,21 @@ func shellLoop(ctx context.Context, currentUser *user.User) {
 		shellFlag = shells.Execute(ctx, commands)
 		currentUser.SetPrompt(prompt, shells.Fs)
 
-		Fsys = shells.Fs
-		if shellFlag {
-			continue
-		}
-
-		// Execute the command for filesystem
-		isReload, shellFlag := Fsys.Execute(ctx, commands)
-		if isReload == "reload" {
+		if commands[0] == "reload" {
+			load.ReloadFilesys(ctx)
 			Fsys = fsys.New()
 			os.RemoveAll("output")
-		}
-		currentUser.SetPrompt(prompt, Fsys)
+		} else {
+			Fsys = shells.Fs
+			if shellFlag {
+				continue
+			}
 
-		shells.SetFilesystem(Fsys)
-		if shellFlag {
-			continue
+			Fsys.Execute(ctx, commands)
 		}
+
+		currentUser.SetPrompt(prompt, Fsys)
+		shells.SetFilesystem(Fsys)
 	}
 }
 

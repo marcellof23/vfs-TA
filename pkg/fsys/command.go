@@ -61,12 +61,12 @@ func (fs *Filesystem) Usage(comms []string) bool {
 		}
 	case "migrate":
 		if len(comms) < 3 {
-			fmt.Println(constant.UsageCommandUpload)
+			fmt.Println(constant.UsageCommandMigrate)
 			return false
 		}
 	case "download":
 		if len(comms) < 3 {
-			fmt.Println(constant.UsageCommandLs)
+			fmt.Println(constant.UsageCommandDownload)
 			return false
 		}
 	}
@@ -74,21 +74,21 @@ func (fs *Filesystem) Usage(comms []string) bool {
 }
 
 // Execute runs the commands passed into it.
-func (fs *Filesystem) Execute(ctx context.Context, comms []string) (string, bool) {
+func (fs *Filesystem) Execute(ctx context.Context, comms []string) bool {
 	var err error
 	if fs.Usage(comms) == false {
-		return "", false
+		return false
 	}
 
 	role, ok := ctx.Value("role").(string)
 	if !ok {
 		fmt.Println("User is not authorized!")
-		return "", false
+		return false
 	}
 
 	switch comms[0] {
 	case "mkdir":
-		err = fs.FilesystemAccessAuth(role, false, comms[0], fs.MkDir, ctx, comms[1])
+		err = fs.FilesystemAccessAuth(ctx, role, false, comms[0], fs.MkDir, ctx, comms[1])
 	case "pwd":
 		fs.Pwd()
 	case "ls":
@@ -103,52 +103,46 @@ func (fs *Filesystem) Execute(ctx context.Context, comms []string) (string, bool
 		err = errs
 	case "rm":
 		if comms[1] == "-r" {
-			err = fs.FilesystemAccessAuth(role, true, comms[0], fs.RemoveDir, ctx, comms[2])
+			err = fs.FilesystemAccessAuth(ctx, role, true, comms[0], fs.RemoveDir, ctx, comms[2])
 		} else {
-			err = fs.FilesystemAccessAuth(role, false, comms[0], fs.RemoveDir, ctx, comms[1])
+			err = fs.FilesystemAccessAuth(ctx, role, false, comms[0], fs.RemoveDir, ctx, comms[1])
 		}
 	case "cp":
 		if comms[1] == "-r" {
-			err = fs.FilesystemAccessAuth(role, true, comms[0], fs.CopyDir, ctx, comms[2], comms[3])
+			err = fs.FilesystemAccessAuth(ctx, role, true, comms[0], fs.CopyDir, ctx, comms[2], comms[3])
 		} else {
-			err = fs.FilesystemAccessAuth(role, false, comms[0], fs.CopyFile, ctx, comms[1], comms[2])
+			err = fs.FilesystemAccessAuth(ctx, role, false, comms[0], fs.CopyFile, ctx, comms[1], comms[2])
 		}
 	case "chmod":
-		err = fs.FilesystemAccessAuth(role, false, comms[0], fs.Chmod, ctx, comms[1], comms[2])
+		err = fs.FilesystemAccessAuth(ctx, role, false, comms[0], fs.Chmod, ctx, comms[1], comms[2])
 	case "upload":
 		if comms[1] == "-r" {
-			err = fs.FilesystemAccessAuth(role, true, comms[0], fs.UploadDir, ctx, comms[2], comms[3])
+			err = fs.FilesystemAccessAuth(ctx, role, true, comms[0], fs.UploadDir, ctx, comms[2], comms[3])
 		} else {
-			err = fs.FilesystemAccessAuth(role, false, comms[0], fs.UploadFile, ctx, comms[1], comms[2])
+			err = fs.FilesystemAccessAuth(ctx, role, false, comms[0], fs.UploadFile, ctx, comms[1], comms[2])
 		}
 	case "migrate":
-		err = fs.FilesystemAccessAuth(role, false, comms[0], fs.Migrate, ctx, comms[1], comms[2])
+		err = fs.FilesystemAccessAuth(ctx, role, false, comms[0], fs.Migrate, ctx, comms[1], comms[2])
 	case "download":
 
 		if comms[1] == "-r" {
-			err = fs.FilesystemAccessAuth(role, true, comms[0], fs.DownloadRecursive, ctx, comms[2], comms[3])
+			err = fs.FilesystemAccessAuth(ctx, role, true, comms[0], fs.DownloadRecursive, ctx, comms[2], comms[3])
 		} else {
-			err = fs.FilesystemAccessAuth(role, false, comms[0], fs.DownloadFile, ctx, comms[1], comms[2])
+			err = fs.FilesystemAccessAuth(ctx, role, false, comms[0], fs.DownloadFile, ctx, comms[1], comms[2])
 		}
 	case "test":
 		fs.Testing(comms[1])
-	case "reload":
-		err = fs.ReloadFilesys(ctx)
-		if err != nil {
-			fmt.Println(err.Error())
-		}
-		return "reload", true
 	case "exit":
 		fs.TearDown()
 		os.Exit(1)
 	default:
 		fmt.Println(comms[0], ": Command not found")
-		return "", false
+		return false
 	}
 	if err != nil {
 		fmt.Println(err.Error())
 	}
-	return "", true
+	return true
 }
 
 // Shell Commands
@@ -176,7 +170,7 @@ func (s *Shell) Execute(ctx context.Context, comms []string) bool {
 	}
 	switch comms[0] {
 	case "cd":
-		err := s.Fs.FilesystemAccessAuth(role, false, comms[0], s.ChDir, ctx, comms[1])
+		err := s.Fs.FilesystemAccessAuth(ctx, role, false, comms[0], s.ChDir, ctx, comms[1])
 		if err != nil {
 			fmt.Println(err.Error())
 		}

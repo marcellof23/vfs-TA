@@ -1,2 +1,2 @@
-go build -o ./tmp/main ./cmd/vfs
-./tmp/main shell
+sudo go build -o ./tmp/main ./cmd/vfs
+sudo ./tmp/main shell

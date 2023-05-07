@@ -12,10 +12,16 @@ var (
 	UsageCommandRm    = `Usage : rm [File name] 
         rm -r [Directories Name] remove directories and their contents recursively
 	`
-	UsageCommandCp = `Usage : cp [File name] 
-        rm -r [Directories Name] copy directories and their contents recursively
+	UsageCommandCp = `Usage : cp [File name source] [File name destination]
+        cp -r [Directories source] [Directories destination] copy directories and their contents recursively
 	`
-	UsageCommandMv     = `Usage : mv [list of directories to make]`
-	UsageCommandChmod  = `Usage : chmod [list of directories to make]`
-	UsageCommandUpload = `Usage : upload [list of directories to make]`
+	UsageCommandMv      = `Usage : mv [list of directories to make]`
+	UsageCommandChmod   = `Usage : chmod [list of directories to make]`
+	UsageCommandUpload  = `Usage : upload [list of directories to make]`
+	UsageCommandMigrate = `Usage : migrate [source cloud provider] [destination cloud provider]
+		list of cloud provider : [gcs, dos, s3]
+	`
+	UsageCommandDownload = `Usage : download [File name local] [File name vfs]
+        download -r [Directories local] [Directories vfs] copy directories and their contents recursively
+	`
 )

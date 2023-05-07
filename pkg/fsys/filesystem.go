@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"net/url"
 	"os"
@@ -20,17 +19,13 @@ import (
 	"github.com/spf13/afero"
 
 	"github.com/marcellof23/vfs-TA/boot"
-	"github.com/marcellof23/vfs-TA/cmd/vfs/load"
 	"github.com/marcellof23/vfs-TA/constant"
-	"github.com/marcellof23/vfs-TA/pkg/model"
 	"github.com/marcellof23/vfs-TA/pkg/producer"
 )
 
 type file struct {
 	name     string // The name of the file.
 	rootPath string // The absolute path of the file.
-	uid      int
-	gid      int
 }
 
 type fileDir struct {
@@ -94,9 +89,9 @@ func (fs *Filesystem) Stat(filename string) (*FileInfo, error) {
 // UploadFile uploads a file to the virtual Filesystem.
 func (fs *Filesystem) UploadFile(ctx context.Context, sourcePath, destPath string) error {
 	destFS, _ := fs.searchFS2(destPath)
-	userState, ok := ctx.Value("userState").(model.UserState)
-	if !ok {
-		return errors.New("failed to get userState from context")
+	userState, err := GetUserStateFromContext(ctx)
+	if err != nil {
+		return err
 	}
 
 	fl, err := os.Stat(sourcePath)
@@ -108,12 +103,13 @@ func (fs *Filesystem) UploadFile(ctx context.Context, sourcePath, destPath strin
 	mode := fl.Mode()
 
 	fs.Touch(ctx, destPath)
-	destFile, _ := fs.MFS.OpenFile(destPath, os.O_RDWR|os.O_CREATE, 0o600)
+	destFile, _ := fs.MFS.OpenFile(destPath, os.O_RDWR|os.O_CREATE, fl.Mode())
 	destFile.Truncate(fl.Size())
 	destFile.Write(dat)
 	fs.MFS.Chmod(filepath.Clean(destPath), mode.Perm())
 	fs.MFS.Chown(filepath.Clean(destPath), userState.UserID, userState.GroupID)
 
+	fmt.Printf("%v", userState)
 	token, err := GetTokenFromContext(ctx)
 	if err != nil {
 		return err
@@ -125,6 +121,9 @@ func (fs *Filesystem) UploadFile(ctx context.Context, sourcePath, destPath strin
 		AbsPathSource: destFile.Name(),
 		AbsPathDest:   destFS.rootPath,
 		Buffer:        dat,
+		FileMode:      uint64(fl.Mode()),
+		Uid:           userState.UserID,
+		Gid:           userState.GroupID,
 	}
 
 	r := producer.Retry(producer.ProduceCommand, 3e9)
@@ -137,9 +136,9 @@ func (fs *Filesystem) UploadFile(ctx context.Context, sourcePath, destPath strin
 func (fs *Filesystem) UploadDir(ctx context.Context, sourcePath, destPath string) error {
 	fsDest, _ := fs.searchFS(destPath)
 
-	userState, ok := ctx.Value("userState").(model.UserState)
-	if !ok {
-		return constant.ErrUserStateNotFound
+	userState, err := GetUserStateFromContext(ctx)
+	if err != nil {
+		return err
 	}
 
 	destPathBase := filepath.Base(destPath)
@@ -201,6 +200,16 @@ func (fs *Filesystem) MkDir(ctx context.Context, dirName string) error {
 	currFs := root
 	segments := strings.Split(dirName, "/")
 
+	token, err := GetTokenFromContext(ctx)
+	if err != nil {
+		return err
+	}
+
+	userState, err := GetUserStateFromContext(ctx)
+	if err != nil {
+		return err
+	}
+
 	for idx, segment := range segments {
 		dirExist := fs.doesDirExistRelativePath(segment, currFs)
 		if segment == "." {
@@ -225,6 +234,11 @@ func (fs *Filesystem) MkDir(ctx context.Context, dirName string) error {
 				return err
 			}
 
+			err = fs.MFS.Chown(filepath.ToSlash(filepath.Join(currFs.rootPath, segment)), userState.UserID, userState.GroupID)
+			if err != nil {
+				return err
+			}
+
 			newDir := &fileDir{
 				name:        segment,
 				rootPath:    filepath.ToSlash(filepath.Join(currFs.rootPath, segment)),
@@ -236,16 +250,14 @@ func (fs *Filesystem) MkDir(ctx context.Context, dirName string) error {
 			currFs.directories[segment] = &Filesystem{currFs.MemFilesystem, newDir}
 			currFs = currFs.directories[segment]
 
-			token, err := GetTokenFromContext(ctx)
-			if err != nil {
-				return err
-			}
-
 			msg := producer.Message{
 				Command:       "mkdir",
 				Token:         token,
 				AbsPathSource: dirName,
 				Buffer:        []byte{},
+				FileMode:      0o777,
+				Uid:           userState.UserID,
+				Gid:           userState.GroupID,
 			}
 
 			r := producer.Retry(producer.ProduceCommand, 3e9)
@@ -373,12 +385,20 @@ func (fs *Filesystem) CopyFile(ctx context.Context, pathSource, pathDest string)
 		return err
 	}
 
+	userState, err := GetUserStateFromContext(ctx)
+	if err != nil {
+		return err
+	}
+
 	msg := producer.Message{
 		Command:       "cp",
 		Token:         token,
 		AbsPathSource: pathSourceFileName,
 		AbsPathDest:   pathTargetFileName,
 		Buffer:        []byte{},
+		FileMode:      uint64(flSource.Mode()),
+		Uid:           userState.UserID,
+		Gid:           userState.UserID,
 	}
 
 	r := producer.Retry(producer.ProduceCommand, 3e9)
@@ -628,10 +648,9 @@ func (fs *Filesystem) Migrate(ctx context.Context, pathSource, pathDest string) 
 	}
 
 	if clientSource == clientDest {
-		return errors.New("sis not supported or not foundource and destination cloud storage cannot be the same")
+		return errors.New("source and destination cloud storage cannot be the same")
 	}
 
-	// TODO: change localhost
 	migrateURL := constant.Protocol + host + constant.ApiVer + "/migrate"
 
 	client := http.Client{}
@@ -671,39 +690,12 @@ func (fs *Filesystem) Testing(path string) {
 		fs.MFS.List()
 	}
 
-	fmt.Println(fs.getAccess(path, "Normal"))
+	fmt.Println(fs.getAccess(path, 1056, 1056))
 }
 
 // SaveState aves the state of the VFS at this time.
 func (fs *Filesystem) SaveState() {
 	fmt.Println("Save the current state of the VFS")
-}
-
-// ReloadFilesys Resets the VFS and scraps all changes made up to this point.
-// (basically like a rerun of InitFilesystem())
-func (fs *Filesystem) ReloadFilesys(ctx context.Context) error {
-	log, ok := ctx.Value("server-logger").(*log.Logger)
-	if !ok {
-		return fmt.Errorf("ERROR: logger not initiated")
-	}
-
-	userState, ok := ctx.Value("userState").(model.UserState)
-	if !ok {
-		return errors.New("failed to get userState from context")
-	}
-
-	dep, ok := ctx.Value("dependency").(*boot.Dependencies)
-	if !ok {
-		return errors.New("failed to get dependency from context")
-	}
-
-	err := load.LoadFilesystem(ctx, dep, userState.Token)
-	if err != nil {
-		log.Println("ERROR: ", err)
-		return errors.New("LLoad new filesysytem")
-	}
-
-	return nil
 }
 
 // TearDown gracefully ends the current session.

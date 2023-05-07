@@ -71,6 +71,14 @@ func (d *FileData) Name() string {
 	return d.name
 }
 
+func (d *FileData) GetUID() int {
+	return d.uid
+}
+
+func (d *FileData) GetGID() int {
+	return d.gid
+}
+
 func CreateFile(name string) *FileData {
 	return &FileData{name: name, mode: os.ModeTemporary, modtime: time.Now()}
 }
@@ -111,14 +119,6 @@ func SetGID(f *FileData, gid int) {
 	f.Lock()
 	f.gid = gid
 	f.Unlock()
-}
-
-func (f *FileData) GetUID() int {
-	return f.uid
-}
-
-func (f *FileData) GetGID() int {
-	return f.gid
 }
 
 func GetFileInfo(f *FileData) *FileInfo {

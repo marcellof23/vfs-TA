@@ -1,6 +1,8 @@
 package fsys
 
 import (
+	"context"
+	"fmt"
 	"path/filepath"
 	"reflect"
 	"strings"
@@ -40,23 +42,25 @@ func concludeAccess(accessSlice []string) string {
 	return access
 }
 
-func (fs *Filesystem) getAccess(path, role string) (string, error) {
+func (fs *Filesystem) getAccess(path string, uid, gid int) (string, error) {
 	checker := fs.handleRootNav(path)
 	segments := strings.Split(path, "/")
 
 	var accessSlice []string
-	rootStat, _ := fs.MFS.Stat(".")
-	rootAccess := rootStat.Mode().Perm().String()
-
-	if role == "Normal" {
-		rootAccess = rootAccess[len(rootAccess)-3:]
-	} else {
-		rootAccess = rootAccess[1:4]
-	}
-	accessSlice = append(accessSlice, rootAccess)
 
 	for _, segment := range segments {
+
 		if segment == "." {
+			rootStat, _ := fs.MFS.Stat(".")
+			rootAccess := rootStat.Mode().Perm().String()
+
+			if uid != fs.MFS.Uid(".") {
+				rootAccess = rootAccess[len(rootAccess)-3:]
+			} else {
+				rootAccess = rootAccess[1:4]
+			}
+			accessSlice = append(accessSlice, rootAccess)
+
 			continue
 		}
 		if len(segment) == 0 {
@@ -72,7 +76,7 @@ func (fs *Filesystem) getAccess(path, role string) (string, error) {
 			dirStat, _ := fs.MFS.Stat(dirName)
 			dirAccess := dirStat.Mode().Perm().String()
 
-			if role == "Normal" {
+			if uid != fs.MFS.Uid(dirName) {
 				dirAccess = dirAccess[len(dirAccess)-3:]
 			} else {
 				dirAccess = dirAccess[1:4]
@@ -83,7 +87,7 @@ func (fs *Filesystem) getAccess(path, role string) (string, error) {
 			filename := filepath.ToSlash(filepath.Join(checker.rootPath, segment))
 			fileStat, _ := fs.MFS.Stat(filename)
 			fileAccess := fileStat.Mode().Perm().String()
-			if role == "Normal" {
+			if uid != fs.MFS.Uid(filename) {
 				fileAccess = fileAccess[len(fileAccess)-3:]
 			} else {
 				fileAccess = fileAccess[1:4]
@@ -102,6 +106,8 @@ func (fs *Filesystem) getAccess(path, role string) (string, error) {
 			return acc, nil
 		}
 	}
+
+	fmt.Println("accessSlice", accessSlice)
 	acc := concludeAccess(accessSlice)
 	if acc == "" {
 		return "", constant.ErrUnauthorizedAccess
@@ -134,7 +140,7 @@ func CallFunc(v reflect.Value, vargs []reflect.Value) error {
 	return nil
 }
 
-func (fs *Filesystem) FilesystemAccessAuth(role string, isRec bool, command string, f interface{}, args ...interface{}) error {
+func (fs *Filesystem) FilesystemAccessAuth(ctx context.Context, role string, isRec bool, command string, f interface{}, args ...interface{}) error {
 	v := reflect.ValueOf(f)
 	vargs := make([]reflect.Value, len(args))
 	for i, arg := range args {
@@ -150,7 +156,12 @@ func (fs *Filesystem) FilesystemAccessAuth(role string, isRec bool, command stri
 		sourceOnly = true
 	}
 
-	if _, ok := constant.Command[command]; ok {
+	userState, err := GetUserStateFromContext(ctx)
+	if err != nil {
+		return err
+	}
+
+	if _, ok := constant.Command[command]; ok && role == "Normal" {
 		var srcPath, dstPath string
 		srcPath = comms[1]
 		if !sourceOnly {
@@ -160,13 +171,14 @@ func (fs *Filesystem) FilesystemAccessAuth(role string, isRec bool, command stri
 		var srcAccess, dstAccess string
 		srcAccess = "---"
 		dstAccess = "---"
-		srcAccess, err := fs.getAccess(srcPath, role)
+
+		srcAccess, err := fs.getAccess(srcPath, userState.UserID, userState.GroupID)
 		if err != nil {
 			return err
 		}
 
 		if !sourceOnly {
-			dstAccess, err = fs.getAccess(dstPath, role)
+			dstAccess, err = fs.getAccess(dstPath, userState.UserID, userState.GroupID)
 			if err != nil && dstPath != "" {
 				return err
 			}
@@ -220,13 +232,13 @@ func (fs *Filesystem) FilesystemAccessAuth(role string, isRec bool, command stri
 			splitPaths = splitPaths[:len(splitPaths)-1]
 			remainingSourceDest := filepath.ToSlash(filepath.Join(splitPaths...))
 			if len(splitPaths) > 1 {
-				srcAccess, err = fs.getAccess(remainingSourceDest, role)
+				srcAccess, err = fs.getAccess(remainingSourceDest, userState.UserID, userState.GroupID)
 				if err != nil {
 					return err
 				}
 			}
 
-			srcAccess, err = fs.getAccess(".", role)
+			srcAccess, err = fs.getAccess(".", userState.UserID, userState.GroupID)
 			if err != nil {
 				return err
 			}
@@ -247,7 +259,7 @@ func (fs *Filesystem) FilesystemAccessAuth(role string, isRec bool, command stri
 				return constant.ErrUnauthorizedAccess
 			}
 		case "chmod":
-			if role == "Normal" {
+			if userState.UserID != fs.MFS.Uid(srcPath) {
 				return constant.ErrUnauthorizedAccess
 			}
 		case "migrate":

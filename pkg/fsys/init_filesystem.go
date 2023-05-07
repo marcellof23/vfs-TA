@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"syscall"
 
 	"github.com/marcellof23/vfs-TA/boot"
 	"github.com/marcellof23/vfs-TA/pkg/model"
@@ -17,7 +18,7 @@ import (
 
 func New() *Filesystem {
 	// uncomment for recursively grab all files and directories from this level downwards.
-	root = ReplicateFilesystem(".", "output/backup", nil)
+	root = ReplicateFilesystem(".", "backup", nil)
 
 	// uncomment for initiate empty virtual Filesystem
 	// root = makeFilesystem(".", ".", nil)
@@ -73,6 +74,9 @@ func copyFilesystem(ctx context.Context, dirName, replicatePath, targetPath stri
 				AbsPathSource: fname,
 				AbsPathDest:   targetPath,
 				Buffer:        dat,
+				FileMode:      uint64(mode),
+				Uid:           userState.UserID,
+				Gid:           userState.GroupID,
 			}
 
 			r := producer.Retry(producer.ProduceCommand, 3e9)
@@ -105,7 +109,10 @@ func ReplicateFilesystem(dirName, replicatePath string, fs *Filesystem) *Filesys
 		if mode.IsDir() {
 			dirname := fileName.Name()
 			fs.directories[dirname] = makeFilesystem(dirname, strings.ReplaceAll(dirName, "//", "/")+"/"+fileName.Name(), fs, fs.MemFilesystem)
-			fs.MFS.Mkdir(filepath.ToSlash(filepath.Join(fs.rootPath, dirname)), mode)
+
+			dirNameClean := filepath.ToSlash(filepath.Join(fs.rootPath, dirname))
+			fs.MFS.Mkdir(dirNameClean, mode)
+			fs.MFS.Chown(dirNameClean, int(fi.Sys().(*syscall.Stat_t).Uid), int(fi.Sys().(*syscall.Stat_t).Gid))
 			ReplicateFilesystem(dirName+"/"+fileName.Name(), replicatePath+"/"+fileName.Name(), fs.directories[fileName.Name()])
 		} else {
 			fs.files[fileName.Name()] = &file{
@@ -116,7 +123,10 @@ func ReplicateFilesystem(dirName, replicatePath string, fs *Filesystem) *Filesys
 			memfile, _ := fs.MFS.Create(fname)
 			memfile.Truncate(fi.Size())
 			memfile.Write(dat)
-			fs.MFS.Chmod(filepath.ToSlash(filepath.Clean(fname)), mode)
+
+			fnameClean := filepath.ToSlash(filepath.Clean(fname))
+			fs.MFS.Chmod(fnameClean, mode)
+			fs.MFS.Chown(fnameClean, int(fi.Sys().(*syscall.Stat_t).Uid), int(fi.Sys().(*syscall.Stat_t).Gid))
 
 		}
 		index++
