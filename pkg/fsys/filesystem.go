@@ -18,28 +18,28 @@ import (
 	"github.com/briandowns/spinner"
 	"github.com/spf13/afero"
 
-	"github.com/marcellof23/vfs-TA/boot"
 	"github.com/marcellof23/vfs-TA/constant"
+	"github.com/marcellof23/vfs-TA/pkg/model"
 	"github.com/marcellof23/vfs-TA/pkg/producer"
 )
 
-type file struct {
-	name     string // The name of the file.
-	rootPath string // The absolute path of the file.
-}
-
-type fileDir struct {
-	name        string                 // The name of the current directory we're in.
-	rootPath    string                 // The absolute path to this directory.
-	files       map[string]*file       // The list of files in this directory.
-	directories map[string]*Filesystem // The list of directories in this directory.
-	prev        *Filesystem            // a reference pointer to this directory's parent directory.
-}
-
-type Filesystem struct {
-	*boot.MemFilesystem
-	*fileDir
-}
+//type file struct {
+//	name     string // The name of the file.
+//	rootPath string // The absolute path of the file.
+//}
+//
+//type fileDir struct {
+//	name        string                 // The name of the current directory we're in.
+//	rootPath    string                 // The absolute path to this directory.
+//	files       map[string]*file       // The list of files in this directory.
+//	directories map[string]*Filesystem // The list of directories in this directory.
+//	prev        *Filesystem            // a reference pointer to this directory's parent directory.
+//}
+//
+//type Filesystem struct {
+//	*boot.MemFilesystem
+//	*fileDir
+//}
 
 type FileInfo struct {
 	os.FileInfo
@@ -48,9 +48,13 @@ type FileInfo struct {
 }
 
 // Root node.
-var root *Filesystem
+var root *model.Filesystem
 
 // Getter and Setter Functions
+
+type Filesystem struct {
+	model.Filesystem
+}
 
 // SetFilesystem set newFS to current Filesystem.
 func (fs *Filesystem) SetFilesystem(newFS *Filesystem) {
@@ -58,19 +62,19 @@ func (fs *Filesystem) SetFilesystem(newFS *Filesystem) {
 }
 
 func (fs *Filesystem) GetRootPath() string {
-	return fs.rootPath
+	return fs.RootPath
 }
 
 // Filesystem Library
 
 // Pwd prints pwd() the current working directory.
 func (fs *Filesystem) Pwd() {
-	fmt.Println(fs.rootPath)
+	fmt.Println(fs.RootPath)
 }
 
 // Stat gracefully ends the current session.
 func (fs *Filesystem) Stat(filename string) (*FileInfo, error) {
-	path := filepath.ToSlash(filepath.Join(fs.rootPath, filename))
+	path := filepath.ToSlash(filepath.Join(fs.RootPath, filename))
 	info, err := fs.MFS.Stat(path)
 
 	if err != nil {
@@ -109,7 +113,6 @@ func (fs *Filesystem) UploadFile(ctx context.Context, sourcePath, destPath strin
 	fs.MFS.Chmod(filepath.Clean(destPath), mode.Perm())
 	fs.MFS.Chown(filepath.Clean(destPath), userState.UserID, userState.GroupID)
 
-	fmt.Printf("%v", userState)
 	token, err := GetTokenFromContext(ctx)
 	if err != nil {
 		return err
@@ -119,7 +122,7 @@ func (fs *Filesystem) UploadFile(ctx context.Context, sourcePath, destPath strin
 		Command:       "upload",
 		Token:         token,
 		AbsPathSource: destFile.Name(),
-		AbsPathDest:   destFS.rootPath,
+		AbsPathDest:   destFS.RootPath,
 		Buffer:        dat,
 		FileMode:      uint64(fl.Mode()),
 		Uid:           userState.UserID,
@@ -144,9 +147,9 @@ func (fs *Filesystem) UploadDir(ctx context.Context, sourcePath, destPath string
 	destPathBase := filepath.Base(destPath)
 	fsDest.MkDir(ctx, destPathBase)
 	fsDest.MFS.Chown(destPathBase, userState.UserID, userState.GroupID)
-	fsDest = fsDest.directories[destPathBase]
+	fsDest = fsDest.Directories[destPathBase]
 
-	copyFilesystem(ctx, ".", sourcePath, fs.absPath(destPath), fsDest)
+	copyFilesystem(ctx, ".", sourcePath, fs.absPath(destPath), fsDest, 0)
 	return nil
 }
 
@@ -169,7 +172,7 @@ func (fs *Filesystem) Touch(ctx context.Context, filename string) error {
 			}
 			currFs = currFs.prev
 		} else if dirExist {
-			currFs = currFs.directories[segment]
+			currFs = currFs.Directories[segment]
 			if idx == len(segments)-1 {
 				return fmt.Errorf("touch : directory with name %s already exists", segment)
 			}
@@ -178,13 +181,13 @@ func (fs *Filesystem) Touch(ctx context.Context, filename string) error {
 		} else if fileExist {
 			return fmt.Errorf("touch :  file with name %s already exists", segment)
 		} else if !fileExist && idx == len(segments)-1 {
-			currFs.MFS.Create(currFs.rootPath + "/" + segment)
+			currFs.MFS.Create(currFs.RootPath + "/" + segment)
 			if _, exists := currFs.files[segment]; exists {
 				return fmt.Errorf("touch : file %s  already exists", segment)
 			}
 			newFile := &file{
 				name:     segment,
-				rootPath: currFs.rootPath + "/" + segment,
+				rootPath: currFs.RootPath + "/" + segment,
 			}
 			currFs.files[segment] = newFile
 
@@ -219,36 +222,36 @@ func (fs *Filesystem) MkDir(ctx context.Context, dirName string) error {
 			continue
 		}
 		if segment == ".." {
-			if currFs.prev == nil {
+			if currFs.Prev == nil {
 				continue
 			}
-			currFs = currFs.prev
+			currFs = currFs.Prev
 		} else if dirExist {
-			currFs = currFs.directories[segment]
+			currFs = currFs.Directories[segment]
 			if idx == len(segments)-1 {
 				return fmt.Errorf("mkdir : directory %s already exists", segment)
 			}
 		} else if !dirExist {
-			err := fs.MFS.MkdirAll(filepath.ToSlash(filepath.Join(currFs.rootPath, segment)), 0o700)
+			err := fs.MFS.MkdirAll(filepath.ToSlash(filepath.Join(currFs.RootPath, segment)), 0o700)
 			if err != nil {
 				return err
 			}
 
-			err = fs.MFS.Chown(filepath.ToSlash(filepath.Join(currFs.rootPath, segment)), userState.UserID, userState.GroupID)
+			err = fs.MFS.Chown(filepath.ToSlash(filepath.Join(currFs.RootPath, segment)), userState.UserID, userState.GroupID)
 			if err != nil {
 				return err
 			}
 
-			newDir := &fileDir{
-				name:        segment,
-				rootPath:    filepath.ToSlash(filepath.Join(currFs.rootPath, segment)),
-				files:       make(map[string]*file),
-				directories: make(map[string]*Filesystem),
-				prev:        currFs,
+			newDir := &model.FileDir{
+				Name:        segment,
+				RootPath:    filepath.ToSlash(filepath.Join(currFs.RootPath, segment)),
+				Files:       make(map[string]*model.File),
+				Directories: make(map[string]*model.Filesystem),
+				Prev:        currFs,
 			}
 
-			currFs.directories[segment] = &Filesystem{currFs.MemFilesystem, newDir}
-			currFs = currFs.directories[segment]
+			currFs.Directories[segment] = &Filesystem{currFs.MemFilesystem, newDir}
+			currFs = currFs.Directories[segment]
 
 			msg := producer.Message{
 				Command:       "mkdir",
@@ -318,19 +321,23 @@ func (fs *Filesystem) RemoveFile(ctx context.Context, filename string) error {
 func (fs *Filesystem) RemoveDir(ctx context.Context, dirname string) error {
 	fsTarget, _ := fs.searchFS(dirname)
 	dirname = fs.absPath(dirname)
+	_, err := fs.MFS.Stat(dirname)
+	if err != nil {
+		return errors.New("file or Directory does not exist")
+	}
 
 	walkFn := func(rootpath, path string, fss *Filesystem, err error) error {
 		fs.RemoveFile(ctx, filepath.ToSlash(filepath.Join(rootpath, path)))
 		return nil
 	}
 
-	err := walkDir(fsTarget, dirname, walkFn)
+	err = walkDir(fsTarget, dirname, walkFn)
 	if err != nil {
 		return err
 	}
 	baseDirName := filepath.Base(dirname)
 	if fsTarget.prev != nil {
-		delete(fsTarget.prev.directories, baseDirName)
+		delete(fsTarget.prev.Directories, baseDirName)
 	}
 
 	err = fs.MFS.RemoveAll(dirname)
@@ -487,8 +494,8 @@ func (fs *Filesystem) ListDir() {
 		}
 	}
 
-	if len(fs.directories) > 0 {
-		directories := SortDirs(fs.directories)
+	if len(fs.Directories) > 0 {
+		directories := SortDirs(fs.Directories)
 		for _, dirName := range directories {
 			coloredDir := fmt.Sprintf("\x1b[%dm%s\x1b[0m", constant.ColorBlue, dirName)
 			fmt.Println(coloredDir)
@@ -516,6 +523,10 @@ func (fs *Filesystem) Chmod(ctx context.Context, perm, name string) error {
 	token, err := GetTokenFromContext(ctx)
 	if err != nil {
 		return err
+	}
+
+	if absName == "." {
+		absName = ""
 	}
 
 	msg := producer.Message{
@@ -665,6 +676,7 @@ func (fs *Filesystem) Migrate(ctx context.Context, pathSource, pathDest string) 
 	req.Header.Set("token", token)
 	resp, err := client.Do(req)
 	if err != nil || resp.StatusCode != 200 {
+		s.Stop()
 		return err
 	}
 
@@ -673,6 +685,7 @@ func (fs *Filesystem) Migrate(ctx context.Context, pathSource, pathDest string) 
 
 	err = json.Unmarshal(body, &post)
 	if err != nil {
+		s.Stop()
 		return err
 	}
 

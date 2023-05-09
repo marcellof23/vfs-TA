@@ -5,9 +5,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"net/http"
 	"time"
 
 	"github.com/segmentio/kafka-go"
+
+	"github.com/marcellof23/vfs-TA/boot"
+	"github.com/marcellof23/vfs-TA/constant"
 )
 
 const (
@@ -25,6 +29,7 @@ type Message struct {
 	AbsPathDest   string
 	Token         string
 	FileMode      uint64
+	Offset        int
 	Uid           int
 	Gid           int
 	Buffer        []byte
@@ -56,6 +61,75 @@ func Retry(effector Effector, delay time.Duration) Effector {
 	}
 }
 
+func IntermediateHealthCheck(ctx context.Context, dep *boot.Dependencies) error {
+	healthURL := constant.Protocol + dep.Config().Server.Addr + "/health"
+
+	ticker := time.NewTicker(5 * time.Second)
+	defer ticker.Stop()
+
+	for range ticker.C {
+		resp, err := http.Get(healthURL)
+		if err != nil || resp.StatusCode != http.StatusOK {
+			fmt.Println("\nServer is down, your changed may not be saved!")
+			ticker2 := time.NewTicker(3 * time.Second)
+			for range ticker2.C {
+				resp, err := http.Get(healthURL)
+				if err == nil && resp.StatusCode == http.StatusOK {
+					fmt.Println("\nServer is ready, your can continue!")
+					ticker2.Stop()
+					break
+				}
+			}
+		}
+	}
+
+	return nil
+}
+
+func KafkaHealthCheck(ctx context.Context) error {
+	dialer := &kafka.Dialer{
+		Timeout:  10 * time.Second,
+		ClientID: "health-check-client",
+	}
+	readerConfig := kafka.ReaderConfig{
+		Brokers:  []string{brokerAddress},
+		Topic:    topic,
+		Dialer:   dialer,
+		MinBytes: 1,
+		MaxBytes: 10e6,
+	}
+
+	ticker := time.NewTicker(5 * time.Second)
+	defer ticker.Stop()
+
+	for range ticker.C {
+		if checkHealth(readerConfig) != nil {
+			fmt.Println("\nServer is down, your changed may not be saved!")
+			ticker2 := time.NewTicker(3 * time.Second)
+			for range ticker2.C {
+				if checkHealth(readerConfig) == nil {
+					fmt.Println("\nServer is ready, your can continue!")
+					ticker2.Stop()
+					break
+				}
+			}
+		}
+	}
+
+	return nil
+}
+
+func checkHealth(conf kafka.ReaderConfig) error {
+	r := kafka.NewReader(conf)
+	_, err := r.FetchMessage(context.Background())
+	defer r.Close()
+	if err != nil {
+		return err
+	} else {
+		return nil
+	}
+}
+
 func ProduceCommand(ctx context.Context, msg Message) error {
 
 	log, ok := ctx.Value("server-logger").(*log.Logger)
@@ -81,7 +155,7 @@ func ProduceCommand(ctx context.Context, msg Message) error {
 		kafka.Message{Value: buff},
 	)
 
-	log.Println(msg.Command, msg.AbsPathSource, msg.AbsPathDest)
+	log.Println(msg.Command, msg.AbsPathSource, msg.AbsPathDest, msg.Uid, msg.Gid, msg.FileMode)
 
 	if err != nil {
 		log.Println("ERROR: kafka writer failed to write messages:", err)

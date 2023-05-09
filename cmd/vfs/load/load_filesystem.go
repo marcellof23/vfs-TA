@@ -45,20 +45,6 @@ func Untar(tarball, target string) error {
 				return err
 			}
 
-			err = os.Chown(path, header.Uid, header.Gid)
-			if err != nil {
-				return err
-			}
-			continue
-		}
-
-		err = func() error {
-			file, err := os.OpenFile(path, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, info.Mode())
-			if err != nil {
-				return err
-			}
-			defer file.Close()
-
 			err = os.Chmod(path, os.FileMode(header.Mode))
 			if err != nil {
 				return err
@@ -68,18 +54,31 @@ func Untar(tarball, target string) error {
 			if err != nil {
 				return err
 			}
+			continue
+		}
 
-			_, err = io.Copy(file, tarReader)
-			if err != nil {
-				return err
-			}
-
-			return nil
-		}()
-
+		file, err := os.OpenFile(path, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, info.Mode())
 		if err != nil {
 			return err
 		}
+		defer file.Close()
+
+		err = os.Chmod(path, os.FileMode(header.Mode))
+		if err != nil {
+			return err
+		}
+
+		err = os.Chown(path, header.Uid, header.Gid)
+		if err != nil {
+			return err
+		}
+
+		_, err = io.Copy(file, tarReader)
+		if err != nil {
+			return err
+		}
+
+		file.Close()
 	}
 
 	return nil

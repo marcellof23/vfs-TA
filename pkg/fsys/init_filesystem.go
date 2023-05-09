@@ -10,13 +10,16 @@ import (
 	"syscall"
 
 	"github.com/marcellof23/vfs-TA/boot"
+	"github.com/marcellof23/vfs-TA/pkg/cache"
 	"github.com/marcellof23/vfs-TA/pkg/model"
 	"github.com/marcellof23/vfs-TA/pkg/producer"
 )
 
 // Initiation Virtual MemFilesystem
 
-func New() *Filesystem {
+func New() *model.Filesystem {
+	cache.LruCache = cache.Constructor()
+
 	// uncomment for recursively grab all files and directories from this level downwards.
 	root = ReplicateFilesystem(".", "backup", nil)
 
@@ -29,13 +32,13 @@ func New() *Filesystem {
 
 // testFilessytemCreation initializes the Filesystem by replicating
 // the current root directory and all it's child direcctories.
-func copyFilesystem(ctx context.Context, dirName, replicatePath, targetPath string, fs *Filesystem) *Filesystem {
+func copyFilesystem(ctx context.Context, dirName, replicatePath, targetPath string, fs *model.Filesystem, idx int) *model.Filesystem {
 	var fileName gofs.DirEntry
 	var fi os.FileInfo
 
 	userState, ok := ctx.Value("userState").(model.UserState)
 	if !ok {
-		return &Filesystem{}
+		return &model.Filesystem{}
 	}
 
 	index := 0
@@ -50,13 +53,13 @@ func copyFilesystem(ctx context.Context, dirName, replicatePath, targetPath stri
 			dirname := fileName.Name()
 			fs.MkDir(ctx, dirname)
 			fs.MFS.Chown(filepath.ToSlash(filepath.Clean(dirname)), userState.UserID, userState.GroupID)
-			copyFilesystem(ctx, dirName+"/"+fileName.Name(), replicatePath+"/"+fileName.Name(), targetPath, fs.directories[fileName.Name()])
+			copyFilesystem(ctx, dirName+"/"+fileName.Name(), replicatePath+"/"+fileName.Name(), targetPath, fs.Directories[fileName.Name()], idx+1)
 		} else {
-			fs.files[fileName.Name()] = &file{
-				name:     fileName.Name(),
-				rootPath: strings.ReplaceAll(dirName, "//", "/") + "/" + fileName.Name(),
+			fs.Files[fileName.Name()] = &model.File{
+				Name:     fileName.Name(),
+				RootPath: strings.ReplaceAll(dirName, "//", "/") + "/" + fileName.Name(),
 			}
-			fname := fs.files[fileName.Name()].rootPath
+			fname := fs.Files[fileName.Name()].RootPath
 			memfile, _ := fs.MFS.Create(filepath.ToSlash(filepath.Join(targetPath, fname)))
 			memfile.Truncate(fi.Size())
 			memfile.Write(dat)
@@ -75,6 +78,7 @@ func copyFilesystem(ctx context.Context, dirName, replicatePath, targetPath stri
 				AbsPathDest:   targetPath,
 				Buffer:        dat,
 				FileMode:      uint64(mode),
+				Offset:        idx,
 				Uid:           userState.UserID,
 				Gid:           userState.GroupID,
 			}
@@ -90,7 +94,7 @@ func copyFilesystem(ctx context.Context, dirName, replicatePath, targetPath stri
 
 // testFilessytemCreation initializes the Filesystem by replicating
 // the current root directory and all it's child direcctories.
-func ReplicateFilesystem(dirName, replicatePath string, fs *Filesystem) *Filesystem {
+func ReplicateFilesystem(dirName, replicatePath string, fs *model.Filesystem) *model.Filesystem {
 	var fileName gofs.DirEntry
 	var fi os.FileInfo
 
@@ -99,6 +103,8 @@ func ReplicateFilesystem(dirName, replicatePath string, fs *Filesystem) *Filesys
 		fs = root
 	}
 
+	fl, _ := os.Stat("backup")
+	fs.MFS.Chmod("/", fl.Mode())
 	index := 0
 	files, _ := os.ReadDir(replicatePath)
 	for index < len(files) {
@@ -108,18 +114,18 @@ func ReplicateFilesystem(dirName, replicatePath string, fs *Filesystem) *Filesys
 		mode := fi.Mode()
 		if mode.IsDir() {
 			dirname := fileName.Name()
-			fs.directories[dirname] = makeFilesystem(dirname, strings.ReplaceAll(dirName, "//", "/")+"/"+fileName.Name(), fs, fs.MemFilesystem)
+			fs.Directories[dirname] = makeFilesystem(dirname, strings.ReplaceAll(dirName, "//", "/")+"/"+fileName.Name(), fs, fs.MemFilesystem)
 
-			dirNameClean := filepath.ToSlash(filepath.Join(fs.rootPath, dirname))
+			dirNameClean := filepath.ToSlash(filepath.Join(fs.RootPath, dirname))
 			fs.MFS.Mkdir(dirNameClean, mode)
 			fs.MFS.Chown(dirNameClean, int(fi.Sys().(*syscall.Stat_t).Uid), int(fi.Sys().(*syscall.Stat_t).Gid))
-			ReplicateFilesystem(dirName+"/"+fileName.Name(), replicatePath+"/"+fileName.Name(), fs.directories[fileName.Name()])
+			ReplicateFilesystem(dirName+"/"+fileName.Name(), replicatePath+"/"+fileName.Name(), fs.Directories[fileName.Name()])
 		} else {
-			fs.files[fileName.Name()] = &file{
-				name:     fileName.Name(),
-				rootPath: strings.ReplaceAll(dirName, "//", "/") + "/" + fileName.Name(),
+			fs.Files[fileName.Name()] = &model.File{
+				Name:     fileName.Name(),
+				RootPath: strings.ReplaceAll(dirName, "//", "/") + "/" + fileName.Name(),
 			}
-			fname := fs.files[fileName.Name()].rootPath
+			fname := fs.Files[fileName.Name()].RootPath
 			memfile, _ := fs.MFS.Create(fname)
 			memfile.Truncate(fi.Size())
 			memfile.Write(dat)
@@ -127,6 +133,7 @@ func ReplicateFilesystem(dirName, replicatePath string, fs *Filesystem) *Filesys
 			fnameClean := filepath.ToSlash(filepath.Clean(fname))
 			fs.MFS.Chmod(fnameClean, mode)
 			fs.MFS.Chown(fnameClean, int(fi.Sys().(*syscall.Stat_t).Uid), int(fi.Sys().(*syscall.Stat_t).Gid))
+			cache.LruCache.Put(fnameClean, fi.Size(), fs)
 
 		}
 		index++
@@ -134,7 +141,7 @@ func ReplicateFilesystem(dirName, replicatePath string, fs *Filesystem) *Filesys
 	return fs
 }
 
-func makeFilesystem(dirName string, rootPath string, prev *Filesystem, fsys *boot.MemFilesystem) *Filesystem {
+func makeFilesystem(dirName string, rootPath string, prev *model.Filesystem, fsys *boot.MemFilesystem) *model.Filesystem {
 	fs := boot.InitFilesystem()
 	if fsys == nil {
 		fs = boot.InitFilesystem()
@@ -142,14 +149,14 @@ func makeFilesystem(dirName string, rootPath string, prev *Filesystem, fsys *boo
 		fs = fsys
 	}
 
-	return &Filesystem{
+	return &model.Filesystem{
 		fs,
-		&fileDir{
-			name:        dirName,
-			rootPath:    rootPath,
-			files:       make(map[string]*file),
-			directories: make(map[string]*Filesystem),
-			prev:        prev,
+		&model.FileDir{
+			Name:        dirName,
+			RootPath:    rootPath,
+			Files:       make(map[string]*model.File),
+			Directories: make(map[string]*model.Filesystem),
+			Prev:        prev,
 		},
 	}
 }

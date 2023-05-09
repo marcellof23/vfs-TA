@@ -97,7 +97,7 @@ func (fs *Filesystem) PrintStat(info *FileInfo, filename string) {
 }
 
 // verifyPath is a function to check file or dir exists
-func (fs *Filesystem) verifyPath(dirName string) (*Filesystem, error) {
+func (fs *Filesystem) verifyPath(dirName string) (*model.Filesystem, error) {
 	checker := fs.handleRootNav(dirName)
 	segments := strings.Split(dirName, "/")
 
@@ -137,12 +137,12 @@ func (fs *Filesystem) searchFS2(dirName string) (*Filesystem, error) {
 			continue
 		}
 		if segment == ".." {
-			if checker.prev == nil {
+			if checker.Prev == nil {
 				continue
 			}
-			checker = checker.prev
+			checker = checker.Prev
 		} else if fs.doesDirExistRelativePath(segment, checker) {
-			checker = checker.directories[segment]
+			checker = checker.Directories[segment]
 		} else if fs.doesFileExistRelativePath(segment, checker) {
 			return checker, nil
 		} else if idx != len(segments)-1 {
@@ -219,22 +219,22 @@ func (fs *Filesystem) absPath(pathname string) string {
 	return absPath
 }
 
-func (fs *Filesystem) handleRootNav(dirName string) *Filesystem {
+func (fs *Filesystem) handleRootNav(dirName string) *model.Filesystem {
 	if dirName[0] == '/' {
 		return root
 	}
 	return fs
 }
 
-func (fs *Filesystem) doesDirExistRelativePath(pathName string, fsys *Filesystem) bool {
-	if _, found := fsys.directories[pathName]; found {
+func (fs *Filesystem) doesDirExistRelativePath(pathName string, fsys *model.Filesystem) bool {
+	if _, found := fsys.Directories[pathName]; found {
 		return true
 	}
 	return false
 }
 
-func (fs *Filesystem) doesFileExistRelativePath(pathName string, fsys *Filesystem) bool {
-	if _, found := fsys.files[pathName]; found {
+func (fs *Filesystem) doesFileExistRelativePath(pathName string, fsys *model.Filesystem) bool {
+	if _, found := fsys.Files[pathName]; found {
 		return true
 	}
 	return false
