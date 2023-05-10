@@ -15,3 +15,5 @@ vendor/github.com/spf13/*
 error-log
 server-log
 output
+demo-folder
+demo-folder2
