@@ -2,7 +2,6 @@ package fsys
 
 import (
 	"context"
-	"fmt"
 	"path/filepath"
 	"reflect"
 	"strings"
@@ -107,7 +106,6 @@ func (fs *Filesystem) getAccess(path string, uid, gid int) (string, error) {
 		}
 	}
 
-	fmt.Println("accessSlice", accessSlice)
 	acc := concludeAccess(accessSlice)
 	if acc == "" {
 		return "", constant.ErrUnauthorizedAccess

@@ -1,109 +1,68 @@
 package main
 
 import (
+	"container/list"
 	"fmt"
-	"io"
-	"os"
-	"path/filepath"
-
-	"github.com/pkg/sftp"
-	"golang.org/x/crypto/ssh"
 )
 
-func main() {
-	// SSH client configuration
-	config := &ssh.ClientConfig{
-		User: "root",
-		Auth: []ssh.AuthMethod{
-			ssh.Password("codegeass7359>"),
-		},
-		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
-	}
+var (
+	LruCache        LRUCache
+	MemoryThreshold = int64(100)
+)
 
-	// Connect to the SSH server
-	conn, err := ssh.Dial("tcp", "localhost:22", config)
-	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
-	}
-	defer conn.Close()
+type Node struct {
+	FileSize int64
+	Filename string
 
-	// Open SFTP session
-	client, err := sftp.NewClient(conn)
-	if err != nil {
-		panic(err)
-	}
-	defer client.Close()
-
-	// Download directory recursively
-	srcDir := "<remote directory>"
-	dstDir := "<local directory>"
-	err = downloadDir(client, srcDir, dstDir)
-	if err != nil {
-		panic(err)
-	}
-
-	fmt.Println("Directory download successful!")
+	KeyPtr *list.Element
 }
 
-// Download directory recursively
-func downloadDir(client *sftp.Client, srcDir string, dstDir string) error {
-	// Get directory contents
-	entries, err := client.ReadDir(srcDir)
-	if err != nil {
-		return err
-	}
+type LRUCache struct {
+	Queue     *list.List
+	Items     map[string]*Node
+	TotalSize int64
+}
 
-	// Create destination directory if it doesn't exist
-	if _, err := os.Stat(dstDir); os.IsNotExist(err) {
-		os.Mkdir(dstDir, 0755)
-	}
+func Constructor() *LRUCache {
+	return &LRUCache{Queue: list.New(), Items: make(map[string]*Node), TotalSize: 0}
+}
 
-	// Download files and recurse into subdirectories
-	for _, entry := range entries {
-		srcPath := filepath.Join(srcDir, entry.Name())
-		dstPath := filepath.Join(dstDir, entry.Name())
+func (l *LRUCache) Put(key string, value int64) {
+	if item, ok := l.Items[key]; !ok {
+		if l.TotalSize >= MemoryThreshold {
+			back := l.Queue.Back()
+			l.Queue.Remove(back)
 
-		if entry.IsDir() {
-			// Recurse into subdirectory
-			err := downloadDir(client, srcPath, dstPath)
-			if err != nil {
-				return err
-			}
-		} else {
-			// Download file
-			srcFile, err := client.Open(srcPath)
-			if err != nil {
-				return err
-			}
-			defer srcFile.Close()
+			delete(l.Items, back.Value.(string))
 
-			dstFile, err := os.Create(dstPath)
-			if err != nil {
-				return err
-			}
-			defer dstFile.Close()
-
-			_, err = io.Copy(dstFile, srcFile)
-			if err != nil {
-				return err
-			}
-
-			// Set file permissions and timestamps to match source file
-			srcStat, err := srcFile.Stat()
-			if err != nil {
-				return err
-			}
-			err = os.Chmod(dstPath, srcStat.Mode())
-			if err != nil {
-				return err
-			}
-			err = os.Chtimes(dstPath, srcStat.ModTime(), srcStat.ModTime())
-			if err != nil {
-				return err
-			}
+			//filename := back.Value.(int64)
+			//destStat, _ := fs.MFS.Stat(filename)
+			//destFile, _ := fs.MFS.OpenFile(filename, os.O_RDWR|os.O_CREATE, destStat.Mode())
+			//destFile.Truncate(0)
+			//destFile.Write([]byte{})
 		}
+		l.TotalSize += value
+		l.Items[key] = &Node{FileSize: value, Filename: key, KeyPtr: l.Queue.PushFront(key)}
+	} else {
+		item.Filename = key
+		item.FileSize = value
+		l.Items[key] = item
+		l.Queue.MoveToFront(item.KeyPtr)
 	}
+}
 
-	return nil
+func (l *LRUCache) Get(key string) int64 {
+	if item, ok := l.Items[key]; ok {
+		l.Queue.MoveToFront(item.KeyPtr)
+		return item.FileSize
+	}
+	return -1
+}
+
+func main() {
+	obj := Constructor()
+	obj.Put("filename1", 50)
+	obj.Put("filename2", 55)
+	obj.Put("filename3", 55)
+	fmt.Println(obj.Get("filename1"))
 }

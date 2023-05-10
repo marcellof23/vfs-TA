@@ -11,6 +11,7 @@ import (
 
 	"github.com/marcellof23/vfs-TA/boot"
 	"github.com/marcellof23/vfs-TA/cmd/vfs/load"
+	"github.com/marcellof23/vfs-TA/pkg/producer"
 
 	"github.com/marcellof23/vfs-TA/pkg/fsys"
 	"github.com/marcellof23/vfs-TA/pkg/user"
@@ -37,6 +38,7 @@ func shellLoop(ctx context.Context, currentUser *user.User) {
 		shellFlag = shells.Execute(ctx, commands)
 		currentUser.SetPrompt(prompt, shells.Fs)
 
+		//memory.PrintMemUsage()
 		if commands[0] == "reload" {
 			load.ReloadFilesys(ctx)
 			Fsys = fsys.New()
@@ -97,6 +99,8 @@ func init() {
 				return
 			}
 
+			go producer.IntermediateHealthCheck(ctx, dep)
+			go producer.KafkaHealthCheck(ctx)
 			shellLoop(ctx, currentUser)
 		},
 	}

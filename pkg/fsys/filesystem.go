@@ -498,19 +498,18 @@ func (fs *Filesystem) ListDir() {
 
 func (fs *Filesystem) Chmod(ctx context.Context, perm, name string) error {
 	absName := fs.absPath(name)
-	fs, err := fs.verifyPath(name)
+	_, err := fs.verifyPath(name)
 	if err != nil {
-		return errors.New("chmod: " + err.Error())
+		return errors.New(err.Error())
 	}
-
 	mode, err := strconv.ParseUint(perm, 8, 32)
 	if err != nil {
-		return errors.New("chmod: " + err.Error())
+		return errors.New(err.Error())
 	}
 
-	err = fs.MFS.Chmod(name, os.FileMode(mode))
+	err = fs.MFS.Chmod(absName, os.FileMode(mode))
 	if err != nil {
-		return errors.New("chmod: " + err.Error())
+		return errors.New(err.Error())
 	}
 
 	token, err := GetTokenFromContext(ctx)
@@ -533,14 +532,62 @@ func (fs *Filesystem) Chmod(ctx context.Context, perm, name string) error {
 	return nil
 }
 
-func (fs *Filesystem) Cat(path string) error {
+type GetFileResp struct {
+	Message string `json:"message"`
+	Error   string `json:"error"`
+	Data    []byte `json:"data"`
+}
+
+func (fs *Filesystem) Cat(ctx context.Context, path string) error {
 	path = fs.absPath(path)
 	data, err := afero.ReadFile(fs.MFS, path)
 	if err != nil {
 		return err
 	}
 
-	fmt.Println(string(data))
+	dep, ok := ctx.Value("dependency").(*boot.Dependencies)
+	if !ok {
+		return errors.New("failed to get dependency from context")
+	}
+
+	if len(data) == 0 {
+		token, err := GetTokenFromContext(ctx)
+		if err != nil {
+			return err
+		}
+
+		filename := filepath.Clean(path)
+		getFileURL := constant.Protocol + dep.Config().Server.Addr + constant.ApiVer + "/file/object?"
+
+		client := http.Client{}
+		var param = url.Values{}
+		param.Add("filename", filename)
+
+		req, err := http.NewRequest(http.MethodGet, getFileURL+param.Encode(), nil)
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("token", token)
+
+		resp, err := client.Do(req)
+		if err != nil || resp.StatusCode != 200 {
+			return err
+		}
+
+		body, err := io.ReadAll(resp.Body)
+		if err != nil {
+			return errors.New("failed to get file data from remote")
+		}
+		fileResp := GetFileResp{}
+		err = json.Unmarshal(body, &fileResp)
+		if err != nil {
+			return errors.New("failed to unmarshal file body")
+		}
+
+		LruCache.Put(path, int64(len(body)), body, fs)
+		fmt.Print(string(fileResp.Data))
+
+	} else {
+		fmt.Println(string(data))
+	}
 	return nil
 }
 
@@ -690,7 +737,8 @@ func (fs *Filesystem) Testing(path string) {
 		fs.MFS.List()
 	}
 
-	fmt.Println(fs.getAccess(path, 1056, 1056))
+	LruCache.PrintCache()
+	//	fmt.Println(fs.getAccess(path, 1056, 1056))
 }
 
 // SaveState aves the state of the VFS at this time.

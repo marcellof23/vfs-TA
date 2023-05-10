@@ -70,6 +70,8 @@ func (currentUser *User) InitPrompt() *readline.Instance {
 		readline.PcItem("rm"),
 		readline.PcItem("cp"),
 		readline.PcItem("chmod"),
+		readline.PcItem("migrate"),
+		readline.PcItem("download"),
 		readline.PcItem("upload"),
 		readline.PcItem("exit"),
 	)

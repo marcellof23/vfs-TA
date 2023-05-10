@@ -17,6 +17,8 @@ import (
 // Initiation Virtual MemFilesystem
 
 func New() *Filesystem {
+
+	LruCache = Constructor()
 	// uncomment for recursively grab all files and directories from this level downwards.
 	root = ReplicateFilesystem(".", "backup", nil)
 
@@ -125,6 +127,7 @@ func ReplicateFilesystem(dirName, replicatePath string, fs *Filesystem) *Filesys
 			memfile.Write(dat)
 
 			fnameClean := filepath.ToSlash(filepath.Clean(fname))
+			LruCache.Put(fnameClean, int64(len(dat)), []byte{}, fs)
 			fs.MFS.Chmod(fnameClean, mode)
 			fs.MFS.Chown(fnameClean, int(fi.Sys().(*syscall.Stat_t).Uid), int(fi.Sys().(*syscall.Stat_t).Gid))
 

@@ -118,7 +118,7 @@ func (fs *Filesystem) verifyPath(dirName string) (*Filesystem, error) {
 		} else if fs.doesFileExistRelativePath(segment, checker) {
 			return checker, nil
 		} else {
-			return fs, fmt.Errorf("Error : %s doesn't exist\n", dirName)
+			return fs, fmt.Errorf("Error : %s doesn't exist", dirName)
 		}
 	}
 	return checker, nil

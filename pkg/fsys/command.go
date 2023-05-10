@@ -94,7 +94,7 @@ func (fs *Filesystem) Execute(ctx context.Context, comms []string) bool {
 	case "ls":
 		fs.ListDir()
 	case "cat":
-		err = fs.Cat(comms[1])
+		err = fs.FilesystemAccessAuth(ctx, role, false, comms[0], fs.Cat, ctx, comms[1])
 	case "stat":
 		stat, errs := fs.Stat(comms[1])
 		if err == nil {
