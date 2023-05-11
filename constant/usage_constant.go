@@ -21,7 +21,7 @@ var (
 	UsageCommandMigrate = `Usage : migrate [source cloud provider] [destination cloud provider]
 		list of cloud provider : [gcs, dos, s3]
 	`
-	UsageCommandDownload = `Usage : download [File name local] [File name vfs]
-        download -r [Directories local] [Directories vfs] copy directories and their contents recursively
+	UsageCommandDownload = `Usage : download [File name vfs] [File name local] 
+        download -r [Directories vfs] [Directories local] copy directories and their contents recursively
 	`
 )

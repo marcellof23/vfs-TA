@@ -44,7 +44,6 @@ func Untar(tarball, target string) error {
 			if err = os.MkdirAll(path, info.Mode()); err != nil {
 				return err
 			}
-
 			err = os.Chmod(path, os.FileMode(header.Mode))
 			if err != nil {
 				return err

@@ -72,7 +72,6 @@ func (fs *Filesystem) Pwd() {
 func (fs *Filesystem) Stat(filename string) (*FileInfo, error) {
 	path := filepath.ToSlash(filepath.Join(fs.rootPath, filename))
 	info, err := fs.MFS.Stat(path)
-
 	if err != nil {
 		return nil, fmt.Errorf("cannot stat %s: ", filename)
 	}
@@ -143,6 +142,9 @@ func (fs *Filesystem) UploadDir(ctx context.Context, sourcePath, destPath string
 
 	destPathBase := filepath.Base(destPath)
 	fsDest.MkDir(ctx, destPathBase)
+
+	dir, _ := os.Stat(sourcePath)
+	fsDest.MFS.Chmod(destPathBase, dir.Mode())
 	fsDest.MFS.Chown(destPathBase, userState.UserID, userState.GroupID)
 	fsDest = fsDest.directories[destPathBase]
 
@@ -275,7 +277,7 @@ func (fs *Filesystem) RemoveFile(ctx context.Context, filename string) error {
 	info, err := fs.Stat(filename)
 	_, err2 := fs.MFS.Stat(absFilename)
 	if err != nil && err2 != nil {
-		return errors.New("file or Directory does not exist")
+		return fmt.Errorf("rm : cannot remove '%s': no such file or directory", filename)
 	}
 
 	if info.IsDir() {
@@ -318,13 +320,17 @@ func (fs *Filesystem) RemoveFile(ctx context.Context, filename string) error {
 func (fs *Filesystem) RemoveDir(ctx context.Context, dirname string) error {
 	fsTarget, _ := fs.searchFS(dirname)
 	dirname = fs.absPath(dirname)
+	_, err := fs.Stat(dirname)
+	if err != nil {
+		return fmt.Errorf("rm : cannot remove '%s': file or Directory does not exist", dirname)
+	}
 
 	walkFn := func(rootpath, path string, fss *Filesystem, err error) error {
 		fs.RemoveFile(ctx, filepath.ToSlash(filepath.Join(rootpath, path)))
 		return nil
 	}
 
-	err := walkDir(fsTarget, dirname, walkFn)
+	err = walkDir(fsTarget, dirname, walkFn)
 	if err != nil {
 		return err
 	}
@@ -361,7 +367,7 @@ func (fs *Filesystem) RemoveDir(ctx context.Context, dirname string) error {
 func (fs *Filesystem) CopyFile(ctx context.Context, pathSource, pathDest string) error {
 	flSource, err := fs.Stat(pathSource)
 	if err != nil {
-		return errors.New("cp: file or Directory source does not exist")
+		return errors.New("cp: no such file or directory")
 	}
 
 	if flSource.IsDir() {
@@ -453,7 +459,7 @@ func (fs *Filesystem) Move(ctx context.Context, pathSource, pathDest string) err
 
 	fileSource, err := fs.Stat(pathSource)
 	if err != nil {
-		return errors.New("file or Directory does not exist")
+		return errors.New("no such file or directory")
 	}
 
 	infoDest, _ := fs.Stat(pathDest)
@@ -593,6 +599,12 @@ func (fs *Filesystem) Cat(ctx context.Context, path string) error {
 
 func (fs *Filesystem) DownloadFile(ctx context.Context, pathSource, pathDest string) error {
 	pathSource = fs.absPath(pathSource)
+
+	_, err := fs.Stat(pathSource)
+	if err != nil {
+		return fmt.Errorf("download : cannot stat '%s': no such file or directory", pathSource)
+	}
+
 	data, err := afero.ReadFile(fs.MFS, pathSource)
 	if err != nil {
 		return err
@@ -616,6 +628,11 @@ func (fs *Filesystem) DownloadFile(ctx context.Context, pathSource, pathDest str
 
 func (fs *Filesystem) DownloadRecursive(ctx context.Context, pathSource, pathDest string) error {
 	fsSource, _ := fs.searchFS(pathSource)
+
+	_, err := fs.Stat(pathSource)
+	if err != nil {
+		return fmt.Errorf("download : cannot stat '%s': no such file or directory", pathSource)
+	}
 
 	pathSource = filepath.Base(pathSource)
 
@@ -650,7 +667,7 @@ func (fs *Filesystem) DownloadRecursive(ctx context.Context, pathSource, pathDes
 		return nil
 	}
 
-	err := walkDir(fsSource, pathSource, walkFn)
+	err = walkDir(fsSource, pathSource, walkFn)
 	if err != nil {
 		return err
 	}
@@ -737,7 +754,7 @@ func (fs *Filesystem) Testing(path string) {
 		fs.MFS.List()
 	}
 
-	LruCache.PrintCache()
+	fmt.Println(&fs.MFS, &fs.directories["boot-vfs2"].MFS)
 	//	fmt.Println(fs.getAccess(path, 1056, 1056))
 }
 

@@ -146,7 +146,7 @@ func (fs *Filesystem) searchFS2(dirName string) (*Filesystem, error) {
 		} else if fs.doesFileExistRelativePath(segment, checker) {
 			return checker, nil
 		} else if idx != len(segments)-1 {
-			return fs, fmt.Errorf("Error : %s doesn't exist\n", dirName)
+			return fs, fmt.Errorf("cannot stat '%s'", dirName)
 		}
 	}
 	return checker, nil
@@ -174,7 +174,7 @@ func (fs *Filesystem) searchFS(dirName string) (*Filesystem, error) {
 		} else if fs.doesFileExistRelativePath(segment, checker) {
 			return checker, nil
 		} else if idx != len(segments)-1 {
-			return fs, fmt.Errorf("Error : %s doesn't exist\n", dirName)
+			return fs, fmt.Errorf("cannot stat '%s'", dirName)
 		}
 	}
 	return checker, nil

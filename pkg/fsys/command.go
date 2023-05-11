@@ -174,7 +174,6 @@ func (s *Shell) Execute(ctx context.Context, comms []string) bool {
 		if err != nil {
 			fmt.Println(err.Error())
 		}
-		//s.ChDir(ctx, comms[1])
 	case "clear":
 		s.ClearScreen()
 	default:

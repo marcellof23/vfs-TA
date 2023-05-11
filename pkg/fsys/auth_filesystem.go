@@ -159,7 +159,7 @@ func (fs *Filesystem) FilesystemAccessAuth(ctx context.Context, role string, isR
 		return err
 	}
 
-	if _, ok := constant.Command[command]; ok && role == "Normal" {
+	if _, ok := constant.Command[command]; ok {
 		var srcPath, dstPath string
 		srcPath = comms[1]
 		if !sourceOnly {
@@ -190,75 +190,105 @@ func (fs *Filesystem) FilesystemAccessAuth(ctx context.Context, role string, isR
 					return err
 				}
 
-				if !checkAccess(srcAccess, "r-x") {
-					return constant.ErrUnauthorizedAccess
+				if role == "Normal" {
+					if !checkAccess(srcAccess, "r-x") {
+						return constant.ErrUnauthorizedAccess
+					}
+
+					if !checkAccess(dstAccess, "rw-") {
+						return constant.ErrUnauthorizedAccess
+					}
 				}
 
-				if !checkAccess(dstAccess, "rw-") {
-					return constant.ErrUnauthorizedAccess
-				}
 			} else {
 				err = fs.CheckCPPath(srcPath, dstPath)
 				if err != nil {
 					return err
 				}
 
-				if !checkAccess(srcAccess, "r--") {
-					return constant.ErrUnauthorizedAccess
+				if role == "Normal" {
+					if !checkAccess(srcAccess, "r--") {
+						return constant.ErrUnauthorizedAccess
+					}
+
+					if !checkAccess(dstAccess, "-w-") {
+						return constant.ErrUnauthorizedAccess
+					}
 				}
 
-				if !checkAccess(dstAccess, "-w-") {
-					return constant.ErrUnauthorizedAccess
-				}
 			}
 		case "rm":
-			if !checkAccess(srcAccess, "-wx") {
-				return constant.ErrUnauthorizedAccess
+			if role == "Normal" {
+				if !checkAccess(srcAccess, "-wx") {
+					return constant.ErrUnauthorizedAccess
+				}
 			}
 		case "upload":
 			if isRec {
-				if !checkAccess(dstAccess, "-wx") {
-					return constant.ErrUnauthorizedAccess
-				}
-			} else {
-				if !checkAccess(dstAccess, "-w-") {
-					return constant.ErrUnauthorizedAccess
-				}
-			}
-		case "mkdir":
-			splitPaths := strings.Split(srcPath, "/")
-			splitPaths = splitPaths[:len(splitPaths)-1]
-			remainingSourceDest := filepath.ToSlash(filepath.Join(splitPaths...))
-			if len(splitPaths) > 1 {
-				srcAccess, err = fs.getAccess(remainingSourceDest, userState.UserID, userState.GroupID)
+				err = fs.CheckUploadRecPath(srcPath, dstPath)
 				if err != nil {
 					return err
 				}
+				if role == "Normal" {
+					if !checkAccess(dstAccess, "-wx") {
+						return constant.ErrUnauthorizedAccess
+					}
+				}
+			} else {
+				err = fs.CheckUploadPath(srcPath, dstPath)
+				if err != nil {
+					return err
+				}
+				if role == "Normal" {
+					if !checkAccess(dstAccess, "-w-") {
+						return constant.ErrUnauthorizedAccess
+					}
+				}
 			}
+		case "mkdir":
+			if role == "Normal" {
+				splitPaths := strings.Split(srcPath, "/")
+				splitPaths = splitPaths[:len(splitPaths)-1]
+				remainingSourceDest := filepath.ToSlash(filepath.Join(splitPaths...))
+				if len(splitPaths) > 1 {
+					srcAccess, err = fs.getAccess(remainingSourceDest, userState.UserID, userState.GroupID)
+					if err != nil {
+						return err
+					}
+				}
 
-			srcAccess, err = fs.getAccess(".", userState.UserID, userState.GroupID)
-			if err != nil {
-				return err
-			}
+				srcAccess, err = fs.getAccess(".", userState.UserID, userState.GroupID)
+				if err != nil {
+					return err
+				}
 
-			if !checkAccess(srcAccess, "-wx") {
-				return constant.ErrUnauthorizedAccess
+				if !checkAccess(srcAccess, "-wx") {
+					return constant.ErrUnauthorizedAccess
+				}
 			}
 		case "cat":
-			if !checkAccess(srcAccess, "r--") {
-				return constant.ErrUnauthorizedAccess
+			if role == "Normal" {
+				if !checkAccess(srcAccess, "r--") {
+					return constant.ErrUnauthorizedAccess
+				}
 			}
 		case "cd":
-			if !checkAccess(srcAccess, "--x") {
-				return constant.ErrUnauthorizedAccess
+			if role == "Normal" {
+				if !checkAccess(srcAccess, "--x") {
+					return constant.ErrUnauthorizedAccess
+				}
 			}
 		case "download":
-			if !checkAccess(srcAccess, "r--") {
-				return constant.ErrUnauthorizedAccess
+			if role == "Normal" {
+				if !checkAccess(srcAccess, "r--") {
+					return constant.ErrUnauthorizedAccess
+				}
 			}
 		case "chmod":
-			if userState.UserID != fs.MFS.Uid(srcPath) {
-				return constant.ErrUnauthorizedAccess
+			if role == "Normal" {
+				if userState.UserID != fs.MFS.Uid(srcPath) {
+					return constant.ErrUnauthorizedAccess
+				}
 			}
 		case "migrate":
 			if role == "Normal" {

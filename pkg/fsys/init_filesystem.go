@@ -25,6 +25,9 @@ func New() *Filesystem {
 	// uncomment for initiate empty virtual Filesystem
 	// root = makeFilesystem(".", ".", nil)
 
+	statBackup, _ := os.Stat("backup")
+	root.MFS.Chmod("/", statBackup.Mode())
+	root.MFS.Chown("/", 1055, 1055)
 	fsys := root
 	return fsys
 }
@@ -51,7 +54,8 @@ func copyFilesystem(ctx context.Context, dirName, replicatePath, targetPath stri
 		if mode.IsDir() {
 			dirname := fileName.Name()
 			fs.MkDir(ctx, dirname)
-			fs.MFS.Chown(filepath.ToSlash(filepath.Clean(dirname)), userState.UserID, userState.GroupID)
+			fs.MFS.Chmod(dirname, mode.Perm())
+			fs.MFS.Chown(filepath.ToSlash(filepath.Clean(filepath.Join(fs.rootPath, dirname))), userState.UserID, userState.GroupID)
 			copyFilesystem(ctx, dirName+"/"+fileName.Name(), replicatePath+"/"+fileName.Name(), targetPath, fs.directories[fileName.Name()])
 		} else {
 			fs.files[fileName.Name()] = &file{
@@ -62,7 +66,7 @@ func copyFilesystem(ctx context.Context, dirName, replicatePath, targetPath stri
 			memfile, _ := fs.MFS.Create(filepath.ToSlash(filepath.Join(targetPath, fname)))
 			memfile.Truncate(fi.Size())
 			memfile.Write(dat)
-			fs.MFS.Chmod(filepath.ToSlash(filepath.Clean(fname)), mode.Perm())
+			fs.MFS.Chmod(memfile.Name(), mode.Perm())
 			fs.MFS.Chown(filepath.ToSlash(filepath.Clean(fname)), userState.UserID, userState.GroupID)
 
 			token, err := GetTokenFromContext(ctx)
