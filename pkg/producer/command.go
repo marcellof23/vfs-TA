@@ -29,7 +29,7 @@ type Message struct {
 	AbsPathDest   string
 	Token         string
 	FileMode      uint64
-	Offset        int
+	Order         int
 	Uid           int
 	Gid           int
 	Buffer        []byte
@@ -71,6 +71,7 @@ func IntermediateHealthCheck(ctx context.Context, dep *boot.Dependencies) error 
 		resp, err := http.Get(healthURL)
 		if err != nil || resp.StatusCode != http.StatusOK {
 			fmt.Println("\nServer is down, your changed may not be saved!")
+
 			ticker2 := time.NewTicker(3 * time.Second)
 			for range ticker2.C {
 				resp, err := http.Get(healthURL)
@@ -105,10 +106,11 @@ func KafkaHealthCheck(ctx context.Context) error {
 	for range ticker.C {
 		if checkHealth(readerConfig) != nil {
 			fmt.Println("\nServer is down, your changed may not be saved!")
+
 			ticker2 := time.NewTicker(3 * time.Second)
 			for range ticker2.C {
 				if checkHealth(readerConfig) == nil {
-					fmt.Println("\nServer is ready, you can continue!")
+					fmt.Println("Server is ready, you can continue!")
 					ticker2.Stop()
 					break
 				}

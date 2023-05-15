@@ -8,6 +8,7 @@ import (
 var (
 	ErrUnauthorizedAccess = errors.New("You are not permitted to perform this action")
 	ErrPathNotFound       = errors.New("no such file or directory")
+	ErrAlreadyExists      = errors.New("file or directory already exists")
 	ErrPathFormatNotFound = errors.New("Error: path %s does not exist")
 	ErrTokenNotFound      = errors.New("failed to get token from context")
 	ErrHostNotFound       = errors.New("failed to get host from context")

@@ -1,24 +1,33 @@
-package main
+package chunker
 
 import (
 	"bufio"
+	"context"
 	"fmt"
 	"io"
-	"log"
 	"math"
 	"os"
-	"path/filepath"
 	"sync"
+
+	"github.com/marcellof23/vfs-TA/pkg/producer"
 )
 
 var (
-	cnt       = 0
-	partsDir  = "output-folder"
-	linesSize = 200 * 1024 * 1024
-	chunkSz   = 50 * 1024 * 1024
+	pipesSize = 100 * 1024 * 1024
+	chunkSz   = 25 * 1024 * 1024
 )
 
-func chunkBytes(data []byte, chunkSize int) [][]byte {
+type FileChunk struct {
+	Ctx           context.Context
+	Command       string
+	AbsPathSource string
+	AbsPathDest   string
+	Token         string
+	Uid           int
+	Gid           int
+}
+
+func (fc *FileChunk) chunkBytes(data []byte, chunkSize int) [][]byte {
 	var chunks [][]byte
 	for i := 0; i < len(data); i += chunkSize {
 		end := i + chunkSize
@@ -29,17 +38,16 @@ func chunkBytes(data []byte, chunkSize int) [][]byte {
 	}
 	return chunks
 }
-func ProcessChunk(chunk []byte, linesPool, stringPool *sync.Pool, partition int) {
+func (fc *FileChunk) ProcessChunk(chunk []byte, linesPool, stringPool *sync.Pool, partition int) {
 
 	var wg sync.WaitGroup
 
 	datas := stringPool.Get().(string)
-	//fmt.Println(len(chunk), "AAA")
 	datas = string(chunk)
 
 	linesPool.Put(chunk)
 
-	datasSlice := chunkBytes([]byte(datas), chunkSz)
+	datasSlice := fc.chunkBytes([]byte(datas), chunkSz)
 
 	stringPool.Put(datas)
 
@@ -51,39 +59,45 @@ func ProcessChunk(chunk []byte, linesPool, stringPool *sync.Pool, partition int)
 		noOfThread++
 	}
 
-	fmt.Println(noOfThread)
-
 	for i := 0; i < (noOfThread); i++ {
 		wg.Add(1)
 
-		fmt.Println(i*chunkSize, int(math.Min(float64((i+1)*chunkSize), float64(len(datasSlice)))), "Ei")
 		go func(s int, e int) {
 			defer wg.Done() //to avoid deadlocks
 			for j := s; j < e; j++ {
-				text := datasSlice[j]
+				data := datasSlice[j]
 
-				filename := filepath.Join(partsDir, fmt.Sprintf("file-%d", partition+j))
-				os.Create(filename)
-				os.WriteFile(filename, text, 0666)
-				fmt.Println(filename, s, e)
+				msg := producer.Message{
+					Command:       "write",
+					Token:         fc.Token,
+					AbsPathSource: fc.AbsPathSource,
+					AbsPathDest:   fc.AbsPathDest,
+					Buffer:        data,
+					Order:         partition + j,
+					Uid:           fc.Uid,
+					Gid:           fc.Gid,
+				}
 
-				if len(text) == 0 {
+				producer.ProduceCommand(fc.Ctx, msg)
+				//fmt.Printf("%+v\n", msg)
+				//r := producer.Retry(producer.ProduceCommand, 3e9)
+				//go r(fc.Ctx, msg)
+
+				if len(data) == 0 {
 					continue
 				}
 			}
 		}(i*chunkSize, int(math.Min(float64((i+1)*chunkSize), float64(len(datasSlice)))))
 	}
 
-	//fmt.Println(cnt, "AHA")
-
 	wg.Wait()
 	datasSlice = nil
 }
 
-func Process(f *os.File) error {
+func (fc *FileChunk) Process(f *os.File) error {
 
 	linesPool := sync.Pool{New: func() interface{} {
-		lines := make([]byte, linesSize)
+		lines := make([]byte, pipesSize)
 		return lines
 	}}
 
@@ -106,7 +120,6 @@ func Process(f *os.File) error {
 
 		if n == 0 {
 			if err != nil {
-				fmt.Println(err)
 				break
 			}
 			if err == io.EOF {
@@ -117,37 +130,18 @@ func Process(f *os.File) error {
 
 		wg.Add(1)
 
-		fmt.Println("punten")
 		go func(partition int) {
-			ProcessChunk(buf, &linesPool, &stringPool, partition)
+			fmt.Println("punten", partition)
+			fc.ProcessChunk(buf, &linesPool, &stringPool, partition)
 			wg.Done()
 		}(partition)
 
 		mutex.Lock()
-		partition += linesSize / chunkSz
+		partition += pipesSize / chunkSz
 		mutex.Unlock()
 
 	}
 
 	wg.Wait()
 	return nil
-}
-
-func main() {
-	//filename := "pkg/fsys/filesystem.go"
-	filename := "demo-folder3/1GB.bin"
-
-	file, err := os.Open(filename)
-	if err != nil {
-		fmt.Println("cannot able to read the file", err)
-		return
-	}
-
-	if _, err := os.Stat(partsDir); os.IsNotExist(err) {
-		if err = os.MkdirAll(partsDir, os.ModePerm); err != nil {
-			log.Fatal("error creating directory:", err)
-		}
-	}
-
-	Process(file)
 }

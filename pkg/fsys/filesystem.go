@@ -20,7 +20,12 @@ import (
 
 	"github.com/marcellof23/vfs-TA/boot"
 	"github.com/marcellof23/vfs-TA/constant"
+	"github.com/marcellof23/vfs-TA/pkg/chunker"
 	"github.com/marcellof23/vfs-TA/pkg/producer"
+)
+
+var (
+	LargeFileConstraint = 50 * 1024 * 1024 // 50MB
 )
 
 type file struct {
@@ -87,6 +92,13 @@ func (fs *Filesystem) Stat(filename string) (*FileInfo, error) {
 
 // UploadFile uploads a file to the virtual Filesystem.
 func (fs *Filesystem) UploadFile(ctx context.Context, sourcePath, destPath string) error {
+	s := spinner.New(spinner.CharSets[14], 150*time.Millisecond) // Build our new spinner
+	s.Start()
+	s.Suffix = fmt.Sprintf(" Uploading in progress...") // Start the spinner
+	defer func() {
+		s.Stop()
+	}()
+
 	destFS, _ := fs.searchFS2(destPath)
 	userState, err := GetUserStateFromContext(ctx)
 	if err != nil {
@@ -97,18 +109,20 @@ func (fs *Filesystem) UploadFile(ctx context.Context, sourcePath, destPath strin
 	if err != nil {
 		return fmt.Errorf("file %s not found", sourcePath)
 	}
+	sourceFile, err := os.Open(sourcePath)
+	if err != nil {
+		return fmt.Errorf("file %s cannot be opened", sourcePath)
+	}
+	defer sourceFile.Close()
 
 	dat, _ := os.ReadFile(sourcePath)
 	mode := fl.Mode()
 
 	fs.Touch(ctx, destPath)
 	destFile, _ := fs.MFS.OpenFile(destPath, os.O_RDWR|os.O_CREATE, fl.Mode())
-	destFile.Truncate(fl.Size())
-	destFile.Write(dat)
 	fs.MFS.Chmod(filepath.Clean(destPath), mode.Perm())
 	fs.MFS.Chown(filepath.Clean(destPath), userState.UserID, userState.GroupID)
 
-	fmt.Printf("%v", userState)
 	token, err := GetTokenFromContext(ctx)
 	if err != nil {
 		return err
@@ -119,20 +133,51 @@ func (fs *Filesystem) UploadFile(ctx context.Context, sourcePath, destPath strin
 		Token:         token,
 		AbsPathSource: destFile.Name(),
 		AbsPathDest:   destFS.rootPath,
-		Buffer:        dat,
 		FileMode:      uint64(fl.Mode()),
+		Buffer:        []byte{},
 		Uid:           userState.UserID,
 		Gid:           userState.GroupID,
 	}
 
-	r := producer.Retry(producer.ProduceCommand, 3e9)
-	go r(ctx, msg)
+	if fl.Size() <= int64(LargeFileConstraint) {
+		destFile.Truncate(fl.Size())
+		destFile.Write(dat)
+
+		msg.Buffer = dat
+
+		r := producer.Retry(producer.ProduceCommand, 3e9)
+		go r(ctx, msg)
+	} else {
+		producer.ProduceCommand(ctx, msg)
+
+		fileChunker := chunker.FileChunk{
+			Ctx:           ctx,
+			Command:       "write",
+			Token:         token,
+			AbsPathSource: destFile.Name(),
+			AbsPathDest:   destFS.rootPath,
+			Uid:           userState.UserID,
+			Gid:           userState.GroupID,
+		}
+
+		err := fileChunker.Process(sourceFile)
+		if err != nil {
+			return err
+		}
+	}
 
 	return nil
 }
 
 // UploadDir uploads a file to the virtual Filesystem.
 func (fs *Filesystem) UploadDir(ctx context.Context, sourcePath, destPath string) error {
+	s := spinner.New(spinner.CharSets[14], 150*time.Millisecond) // Build our new spinner
+	s.Start()
+	s.Suffix = fmt.Sprintf(" Uploading in progress...") // Start the spinner
+	defer func() {
+		s.Stop()
+	}()
+
 	fsDest, _ := fs.searchFS(destPath)
 
 	userState, err := GetUserStateFromContext(ctx)

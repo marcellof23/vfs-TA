@@ -10,6 +10,7 @@ import (
 	"syscall"
 
 	"github.com/marcellof23/vfs-TA/boot"
+	"github.com/marcellof23/vfs-TA/pkg/chunker"
 	"github.com/marcellof23/vfs-TA/pkg/model"
 	"github.com/marcellof23/vfs-TA/pkg/producer"
 )
@@ -49,6 +50,7 @@ func copyFilesystem(ctx context.Context, dirName, replicatePath, targetPath stri
 	for index < len(files) {
 		fileName = files[index]
 		fi, _ = os.Stat(replicatePath + "/" + fileName.Name())
+		fl, _ := os.Open(replicatePath + "/" + fileName.Name())
 		dat, _ := os.ReadFile(replicatePath + "/" + fileName.Name())
 		mode := fi.Mode()
 		if mode.IsDir() {
@@ -79,14 +81,32 @@ func copyFilesystem(ctx context.Context, dirName, replicatePath, targetPath stri
 				Token:         token,
 				AbsPathSource: fname,
 				AbsPathDest:   targetPath,
-				Buffer:        dat,
+				Buffer:        []byte{},
 				FileMode:      uint64(mode),
 				Uid:           userState.UserID,
 				Gid:           userState.GroupID,
 			}
 
-			r := producer.Retry(producer.ProduceCommand, 3e9)
-			go r(ctx, msg)
+			if fi.Size() <= int64(LargeFileConstraint) {
+				msg.Buffer = dat
+				r := producer.Retry(producer.ProduceCommand, 3e9)
+				go r(ctx, msg)
+			} else {
+				producer.ProduceCommand(ctx, msg)
+
+				fileChunker := chunker.FileChunk{
+					Ctx:           ctx,
+					Command:       "write",
+					Token:         token,
+					AbsPathSource: fname,
+					AbsPathDest:   targetPath,
+					Uid:           userState.UserID,
+					Gid:           userState.GroupID,
+				}
+
+				_ = fileChunker.Process(fl)
+
+			}
 		}
 
 		index++
