@@ -21,7 +21,8 @@ import (
 func shellLoop(ctx context.Context, currentUser *user.User) {
 	var shellFlag bool
 
-	Fsys := fsys.New()
+	maxFileSize, _ := fsys.GetMaxFileSzFromContext(ctx)
+	Fsys := fsys.New(maxFileSize)
 	prompt := currentUser.InitPrompt()
 	shells := fsys.InitShell(Fsys)
 	os.RemoveAll("backup")
@@ -42,7 +43,7 @@ func shellLoop(ctx context.Context, currentUser *user.User) {
 		memory.PrintMemUsage()
 		if commands[0] == "reload" {
 			load.ReloadFilesys(ctx)
-			Fsys = fsys.New()
+			Fsys = fsys.New(maxFileSize)
 			os.RemoveAll("output")
 		} else {
 			Fsys = shells.Fs
@@ -91,6 +92,7 @@ func init() {
 			ctx = context.WithValue(ctx, "token", currentUser.Token)
 			ctx = context.WithValue(ctx, "host", dep.Config().Server.Addr)
 			ctx = context.WithValue(ctx, "clients", dep.Config().Clients)
+			ctx = context.WithValue(ctx, "maxFileSize", dep.Config().MaxFileSize)
 			ctx = context.WithValue(ctx, "dependency", dep)
 			ctx = context.WithValue(ctx, "userState", user.ToModelUserState(currentUser))
 

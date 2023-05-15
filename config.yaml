@@ -5,6 +5,7 @@ clients:
   - 'gcs'
   - 'dos'
   - 's3'
+maxFileSize: 50 # (in MiB)
 
 backupPathLocal: '/home/integeroverflow/TugasAkhir/repo/vfs-TA/output/backup'
 backupPathIntermediateService: '/home/integeroverflow/TugasAkhir/repo/intermediate-service-TA/backup'

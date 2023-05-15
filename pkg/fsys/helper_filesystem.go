@@ -35,9 +35,18 @@ func GetClientsFromContext(c context.Context) ([]string, error) {
 	tmp := c.Value("clients")
 	clients, ok := tmp.([]string)
 	if !ok {
-		return []string{}, constant.ErrTokenNotFound
+		return []string{}, constant.ErrClientsNotFound
 	}
 	return clients, nil
+}
+
+func GetMaxFileSzFromContext(c context.Context) (int64, error) {
+	tmp := c.Value("maxFileSize")
+	maxSz, ok := tmp.(int64)
+	if !ok {
+		return 0, constant.ErrTokenNotFound
+	}
+	return maxSz, nil
 }
 
 func GetHostFromContext(c context.Context) (string, error) {

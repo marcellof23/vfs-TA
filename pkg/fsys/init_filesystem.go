@@ -17,11 +17,11 @@ import (
 
 // Initiation Virtual MemFilesystem
 
-func New() *Filesystem {
+func New(maxFileSize int64) *Filesystem {
 
 	LruCache = Constructor()
 	// uncomment for recursively grab all files and directories from this level downwards.
-	root = ReplicateFilesystem(".", "backup", nil)
+	root = ReplicateFilesystem(".", "backup", nil, maxFileSize)
 
 	// uncomment for initiate empty virtual Filesystem
 	// root = makeFilesystem(".", ".", nil)
@@ -116,7 +116,7 @@ func copyFilesystem(ctx context.Context, dirName, replicatePath, targetPath stri
 
 // testFilessytemCreation initializes the Filesystem by replicating
 // the current root directory and all it's child direcctories.
-func ReplicateFilesystem(dirName, replicatePath string, fs *Filesystem) *Filesystem {
+func ReplicateFilesystem(dirName, replicatePath string, fs *Filesystem, maxFileSize int64) *Filesystem {
 	var fileName gofs.DirEntry
 	var fi os.FileInfo
 
@@ -139,7 +139,7 @@ func ReplicateFilesystem(dirName, replicatePath string, fs *Filesystem) *Filesys
 			dirNameClean := filepath.ToSlash(filepath.Join(fs.rootPath, dirname))
 			fs.MFS.Mkdir(dirNameClean, mode)
 			fs.MFS.Chown(dirNameClean, int(fi.Sys().(*syscall.Stat_t).Uid), int(fi.Sys().(*syscall.Stat_t).Gid))
-			ReplicateFilesystem(dirName+"/"+fileName.Name(), replicatePath+"/"+fileName.Name(), fs.directories[fileName.Name()])
+			ReplicateFilesystem(dirName+"/"+fileName.Name(), replicatePath+"/"+fileName.Name(), fs.directories[fileName.Name()], maxFileSize)
 		} else {
 			fs.files[fileName.Name()] = &file{
 				name:     fileName.Name(),
