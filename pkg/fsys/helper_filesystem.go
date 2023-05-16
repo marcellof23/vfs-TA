@@ -2,11 +2,17 @@ package fsys
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"io"
+	"net/http"
+	"net/url"
+	"os"
 	"path/filepath"
 	"sort"
 	"strings"
 
+	"github.com/marcellof23/vfs-TA/boot"
 	"github.com/marcellof23/vfs-TA/constant"
 	"github.com/marcellof23/vfs-TA/pkg/model"
 )
@@ -317,4 +323,39 @@ func JoinPath(path ...string) string {
 	joinedPath := filepath.Join(path...)
 	unixPath := filepath.ToSlash(joinedPath)
 	return unixPath
+}
+
+func GetFile(ctx context.Context, sourcePath string, targetFile *os.File) error {
+	token, err := GetTokenFromContext(ctx)
+	if err != nil {
+		return err
+	}
+
+	dep, ok := ctx.Value("dependency").(*boot.Dependencies)
+	if !ok {
+		return errors.New("failed to get dependency from context")
+	}
+
+	filename := filepath.Clean(sourcePath)
+	getFileURL := constant.Protocol + dep.Config().Server.Addr + constant.ApiVer + "/file/object?"
+
+	client := http.Client{}
+	var param = url.Values{}
+	param.Add("filename", filename)
+
+	req, err := http.NewRequest(http.MethodGet, getFileURL+param.Encode(), nil)
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("token", token)
+
+	resp, err := client.Do(req)
+	if err != nil || resp.StatusCode != 200 {
+		return err
+	}
+
+	_, err = io.Copy(targetFile, resp.Body)
+	if err != nil {
+		fmt.Printf("Error downloading file: %s\n", err.Error())
+	}
+
+	return nil
 }

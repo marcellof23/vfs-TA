@@ -173,7 +173,7 @@ func (fs *Filesystem) UploadFile(ctx context.Context, sourcePath, destPath strin
 func (fs *Filesystem) UploadDir(ctx context.Context, sourcePath, destPath string) error {
 	s := spinner.New(spinner.CharSets[14], 150*time.Millisecond) // Build our new spinner
 	s.Start()
-	s.Suffix = fmt.Sprintf(" Uploading in progress...") // Start the spinner
+	s.Suffix = fmt.Sprintf("Uploading in progress...") // Start the spinner
 	defer func() {
 		s.Stop()
 	}()
@@ -662,10 +662,45 @@ func (fs *Filesystem) DownloadFile(ctx context.Context, pathSource, pathDest str
 
 	defer f.Close()
 
-	_, err = f.Write(data)
+	if len(data) == 0 {
+		token, err := GetTokenFromContext(ctx)
+		if err != nil {
+			return err
+		}
 
-	if err != nil {
-		return err
+		dep, ok := ctx.Value("dependency").(*boot.Dependencies)
+		if !ok {
+			return errors.New("failed to get dependency from context")
+		}
+
+		filename := filepath.Clean(pathSource)
+		getFileURL := constant.Protocol + dep.Config().Server.Addr + constant.ApiVer + "/file/object?"
+
+		client := http.Client{}
+		var param = url.Values{}
+		param.Add("filename", filename)
+
+		req, err := http.NewRequest(http.MethodGet, getFileURL+param.Encode(), nil)
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("token", token)
+
+		resp, err := client.Do(req)
+		if err != nil || resp.StatusCode != 200 {
+			return err
+		}
+
+		_, err = io.Copy(f, resp.Body)
+		if err != nil {
+			fmt.Printf("Error downloading file: %s\n", err.Error())
+		}
+
+		fmt.Println("File downloaded successfully.")
+	} else {
+		_, err = f.Write(data)
+
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -699,14 +734,48 @@ func (fs *Filesystem) DownloadRecursive(ctx context.Context, pathSource, pathDes
 
 			newFile := filepath.ToSlash(filepath.Join(pathDest, remainingPath, path))
 
-			os.Create(newFile)
+			f, _ := os.Create(newFile)
 
 			pathSourceFileName := fs.absPath(filepath.ToSlash(filepath.Join(rootPath, path)))
 			sourceFile, _ := fs.MFS.Open(pathSourceFileName)
 			stat, _ := sourceFile.Stat()
-			b := make([]byte, stat.Size())
-			sourceFile.Read(b)
-			os.WriteFile(newFile, b, stat.Mode())
+
+			if stat.Size() == 0 {
+				token, err := GetTokenFromContext(ctx)
+				if err != nil {
+					return err
+				}
+
+				dep, ok := ctx.Value("dependency").(*boot.Dependencies)
+				if !ok {
+					return errors.New("failed to get dependency from context")
+				}
+
+				filename := filepath.Clean(pathSource)
+				getFileURL := constant.Protocol + dep.Config().Server.Addr + constant.ApiVer + "/file/object?"
+
+				client := http.Client{}
+				var param = url.Values{}
+				param.Add("filename", filename)
+
+				req, err := http.NewRequest(http.MethodGet, getFileURL+param.Encode(), nil)
+				req.Header.Set("Content-Type", "application/json")
+				req.Header.Set("token", token)
+
+				resp, err := client.Do(req)
+				if err != nil || resp.StatusCode != 200 {
+					return err
+				}
+
+				_, err = io.Copy(f, resp.Body)
+				if err != nil {
+					fmt.Printf("Error downloading file: %s\n", err.Error())
+				}
+			} else {
+				b := make([]byte, stat.Size())
+				sourceFile.Read(b)
+				os.WriteFile(newFile, b, stat.Mode())
+			}
 
 		}
 		return nil

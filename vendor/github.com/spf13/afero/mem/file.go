@@ -61,6 +61,7 @@ type FileData struct {
 	dir     bool
 	mode    os.FileMode
 	modtime time.Time
+	loaded  bool
 	uid     int
 	gid     int
 }
@@ -80,7 +81,7 @@ func (d *FileData) GetGID() int {
 }
 
 func CreateFile(name string) *FileData {
-	return &FileData{name: name, mode: os.ModeTemporary, modtime: time.Now()}
+	return &FileData{name: name, mode: os.ModeTemporary, modtime: time.Now(), loaded: true}
 }
 
 func CreateDir(name string) *FileData {
@@ -118,6 +119,12 @@ func SetUID(f *FileData, uid int) {
 func SetGID(f *FileData, gid int) {
 	f.Lock()
 	f.gid = gid
+	f.Unlock()
+}
+
+func SetLoaded(f *FileData, isLoaded bool) {
+	f.Lock()
+	f.loaded = isLoaded
 	f.Unlock()
 }
 
@@ -355,6 +362,15 @@ func (s *FileInfo) Size() int64 {
 	s.Lock()
 	defer s.Unlock()
 	return int64(len(s.data))
+}
+
+func (s *FileInfo) IsLoaded() bool {
+	if s.IsDir() {
+		return true
+	}
+	s.Lock()
+	defer s.Unlock()
+	return s.loaded
 }
 
 var (

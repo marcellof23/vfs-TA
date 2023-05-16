@@ -91,7 +91,7 @@ func (fs *Filesystem) getAccess(path string, uid, gid int) (string, error) {
 			} else {
 				fileAccess = fileAccess[1:4]
 			}
-			accessSlice = append(accessSlice, fileAccess[len(fileAccess)-3:])
+			accessSlice = append(accessSlice, fileAccess)
 			acc := concludeAccess(accessSlice)
 			if acc == "" {
 				return "", constant.ErrUnauthorizedAccess

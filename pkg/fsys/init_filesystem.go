@@ -70,6 +70,7 @@ func copyFilesystem(ctx context.Context, dirName, replicatePath, targetPath stri
 			memfile.Write(dat)
 			fs.MFS.Chmod(memfile.Name(), mode.Perm())
 			fs.MFS.Chown(filepath.ToSlash(filepath.Clean(fname)), userState.UserID, userState.GroupID)
+			LruCache.Put(filepath.ToSlash(filepath.Join(targetPath, fname)), fi.Size(), dat, fs)
 
 			token, err := GetTokenFromContext(ctx)
 			if err != nil {

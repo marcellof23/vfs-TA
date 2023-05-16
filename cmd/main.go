@@ -2,9 +2,12 @@ package cmd
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"os"
+	"os/signal"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -26,6 +29,15 @@ func shellLoop(ctx context.Context, currentUser *user.User) {
 	prompt := currentUser.InitPrompt()
 	shells := fsys.InitShell(Fsys)
 	os.RemoveAll("backup")
+
+	sigchan := make(chan os.Signal, 1)
+	signal.Notify(sigchan, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
+	go func() {
+		<-sigchan
+		fmt.Println("Program killed!")
+		Fsys.TearDown()
+		os.Exit(1)
+	}()
 
 	for {
 		input, _ := prompt.Readline()
