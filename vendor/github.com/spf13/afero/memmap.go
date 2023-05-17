@@ -420,29 +420,3 @@ func (m *MemMapFs) List() {
 		fmt.Println(x.Name(), y.Size())
 	}
 }
-
-func (m *MemMapFs) Uid(name string) int {
-	name = normalizePath(name)
-
-	m.mu.RLock()
-	f, ok := m.getData()[name]
-	m.mu.RUnlock()
-	if !ok {
-		return 0
-	}
-
-	return f.GetUID()
-}
-
-func (m *MemMapFs) Gid(name string) int {
-	name = normalizePath(name)
-
-	m.mu.RLock()
-	f, ok := m.getData()[name]
-	m.mu.RUnlock()
-	if !ok {
-		return 0
-	}
-
-	return f.GetGID()
-}

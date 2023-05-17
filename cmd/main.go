@@ -16,6 +16,8 @@ import (
 	"github.com/marcellof23/vfs-TA/cmd/vfs/load"
 	"github.com/marcellof23/vfs-TA/pkg/memory"
 	"github.com/marcellof23/vfs-TA/pkg/producer"
+	"github.com/marcellof23/vfs-TA/pkg/pubsub_notify/publisher"
+	"github.com/marcellof23/vfs-TA/pkg/pubsub_notify/subscriber"
 
 	"github.com/marcellof23/vfs-TA/pkg/fsys"
 	"github.com/marcellof23/vfs-TA/pkg/user"
@@ -99,6 +101,9 @@ func init() {
 			logger := log.New(LogFile, time.Now().Format("2006-01-02 15:04:05")+": ", 0)
 			ctx := context.WithValue(context.Background(), "server-logger", logger)
 
+			pubs := publisher.InitDefault()
+			subs := subscriber.InitDefault()
+
 			currentUser := user.InitUser(dep)
 			ctx = context.WithValue(ctx, "role", currentUser.Role)
 			ctx = context.WithValue(ctx, "token", currentUser.Token)
@@ -107,6 +112,7 @@ func init() {
 			ctx = context.WithValue(ctx, "maxFileSize", dep.Config().MaxFileSize)
 			ctx = context.WithValue(ctx, "dependency", dep)
 			ctx = context.WithValue(ctx, "userState", user.ToModelUserState(currentUser))
+			ctx = context.WithValue(ctx, "publisher", pubs)
 
 			err = load.LoadFilesystem(ctx, dep, currentUser.Token)
 			if err != nil {
