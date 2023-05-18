@@ -13,9 +13,10 @@ import (
 
 // The main User object.
 type User struct {
-	Username   string         // The User's onscreen name.
-	Token      string         // User token
-	Role       string         // User role
+	Username   string // The User's onscreen name.
+	Token      string // User token
+	Role       string // User role
+	ClientID   string
 	UserID     int            // User ID
 	GroupID    int            // Group ID
 	accessList map[string]int // A map containing the unique hashes and access rights for each file.
@@ -27,6 +28,7 @@ func initiateUser(state model.UserState) *User {
 		Username: state.Username,
 		Role:     state.Role,
 		Token:    state.Token,
+		ClientID: state.ClientID,
 		UserID:   state.UserID,
 		GroupID:  state.GroupID,
 	}
@@ -36,6 +38,7 @@ func ToModelUserState(user *User) model.UserState {
 		Username: user.Username,
 		Role:     user.Role,
 		Token:    user.Token,
+		ClientID: user.ClientID,
 		UserID:   user.UserID,
 		GroupID:  user.GroupID,
 	}

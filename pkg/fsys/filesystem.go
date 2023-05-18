@@ -16,7 +16,9 @@ import (
 	"time"
 
 	"github.com/briandowns/spinner"
-	"github.com/spf13/afero"
+
+	"github.com/marcellof23/vfs-TA/lib/afero"
+	"github.com/marcellof23/vfs-TA/pkg/pubsub_notify"
 
 	"github.com/marcellof23/vfs-TA/boot"
 	"github.com/marcellof23/vfs-TA/constant"
@@ -347,6 +349,35 @@ func (fs *Filesystem) RemoveFile(ctx context.Context, filename string) error {
 		return err
 	}
 
+	pubs, err := GetPublisherFromContext(ctx)
+	if err != nil {
+		return err
+	}
+
+	//userState, err := GetUserStateFromContext(ctx)
+	//if err != nil {
+	//	return err
+	//}
+	clientID, err := GetClientIDFromContext(ctx)
+	if err != nil {
+		return err
+	}
+
+	// Sync to other client
+	msgSync := pubsub_notify.MessageCommand{
+		FullCommand: fmt.Sprintf("%s %s", "rm", filename),
+		//ClientID:    strconv.Itoa(userState.UserID),
+		ClientID: clientID,
+	}
+
+	fmt.Println(msgSync.ClientID, "AHA")
+	err = pubs.Publish(ctx, msgSync)
+	if err != nil {
+		fmt.Println(err)
+		return err
+	}
+
+	// Send to intermediate service
 	msg := producer.Message{
 		Command:       "rm",
 		Token:         token,
@@ -862,14 +893,20 @@ func (fs *Filesystem) Migrate(ctx context.Context, pathSource, pathDest string) 
 	return nil
 }
 
-func (fs *Filesystem) Testing(path string) {
+func (fs *Filesystem) Testing(ctx context.Context, path string) {
 
+	pubs, _ := GetPublisherFromContext(ctx)
+	clientID, _ := GetClientIDFromContext(ctx)
+	msg := pubsub_notify.MessageCommand{
+		FullCommand: path,
+		ClientID:    clientID,
+	}
+
+	pubs.Publish(ctx, msg)
 	if path == "hehe" {
 		fs.MFS.List()
 	}
 
-	fmt.Println(&fs.MFS, &fs.directories["boot-vfs2"].MFS)
-	//	fmt.Println(fs.getAccess(path, 1056, 1056))
 }
 
 // SaveState aves the state of the VFS at this time.

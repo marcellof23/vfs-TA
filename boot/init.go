@@ -1,7 +1,7 @@
 package boot
 
 import (
-	"github.com/spf13/afero"
+	"github.com/marcellof23/vfs-TA/lib/afero"
 )
 
 type MemFilesystem struct {

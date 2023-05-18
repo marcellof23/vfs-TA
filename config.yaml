@@ -9,3 +9,9 @@ maxFileSize: 50 # (in MiB)
 
 backupPathLocal: '/home/integeroverflow/TugasAkhir/repo/vfs-TA/output/backup'
 backupPathIntermediateService: '/home/integeroverflow/TugasAkhir/repo/intermediate-service-TA/backup'
+
+pubsub:
+  topic: 'command-topic'
+  projectID: 'phonic-weaver-375914'
+  subscription: 'command-sub'
+  credentialsFile : 'credentials.json'

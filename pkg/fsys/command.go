@@ -105,7 +105,7 @@ func (fs *Filesystem) Execute(ctx context.Context, comms []string) bool {
 		if comms[1] == "-r" {
 			err = fs.FilesystemAccessAuth(ctx, role, true, comms[0], fs.RemoveDir, ctx, comms[2])
 		} else {
-			err = fs.FilesystemAccessAuth(ctx, role, false, comms[0], fs.RemoveDir, ctx, comms[1])
+			err = fs.FilesystemAccessAuth(ctx, role, false, comms[0], fs.RemoveFile, ctx, comms[1])
 		}
 	case "cp":
 		if comms[1] == "-r" {
@@ -131,7 +131,7 @@ func (fs *Filesystem) Execute(ctx context.Context, comms []string) bool {
 			err = fs.FilesystemAccessAuth(ctx, role, false, comms[0], fs.DownloadFile, ctx, comms[1], comms[2])
 		}
 	case "test":
-		fs.Testing(comms[1])
+		fs.Testing(ctx, comms[1])
 	case "exit":
 		fs.TearDown()
 		os.Exit(1)

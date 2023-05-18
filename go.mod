@@ -6,9 +6,12 @@ require (
 	cloud.google.com/go/pubsub v1.30.1
 	github.com/briandowns/spinner v1.23.0
 	github.com/chzyer/readline v1.5.1
+	github.com/google/uuid v1.3.0
 	github.com/segmentio/kafka-go v0.4.39
 	github.com/spf13/afero v1.9.5
 	github.com/spf13/cobra v1.6.1
+	golang.org/x/text v0.9.0
+	google.golang.org/api v0.122.0
 	gopkg.in/yaml.v3 v3.0.1
 )
 
@@ -37,8 +40,6 @@ require (
 	golang.org/x/sync v0.2.0 // indirect
 	golang.org/x/sys v0.8.0 // indirect
 	golang.org/x/term v0.8.0 // indirect
-	golang.org/x/text v0.9.0 // indirect
-	google.golang.org/api v0.122.0 // indirect
 	google.golang.org/appengine v1.6.7 // indirect
 	google.golang.org/genproto v0.0.0-20230410155749-daa745c078e1 // indirect
 	google.golang.org/grpc v1.55.0 // indirect

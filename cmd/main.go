@@ -5,15 +5,14 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"os/signal"
 	"strings"
-	"syscall"
 	"time"
 
 	"github.com/spf13/cobra"
 
 	"github.com/marcellof23/vfs-TA/boot"
 	"github.com/marcellof23/vfs-TA/cmd/vfs/load"
+	"github.com/marcellof23/vfs-TA/global"
 	"github.com/marcellof23/vfs-TA/pkg/memory"
 	"github.com/marcellof23/vfs-TA/pkg/producer"
 	"github.com/marcellof23/vfs-TA/pkg/pubsub_notify/publisher"
@@ -27,19 +26,10 @@ func shellLoop(ctx context.Context, currentUser *user.User) {
 	var shellFlag bool
 
 	maxFileSize, _ := fsys.GetMaxFileSzFromContext(ctx)
-	Fsys := fsys.New(maxFileSize)
+	global.Filesys = fsys.New(maxFileSize)
 	prompt := currentUser.InitPrompt()
-	shells := fsys.InitShell(Fsys)
+	shells := fsys.InitShell(global.Filesys)
 	os.RemoveAll("backup")
-
-	sigchan := make(chan os.Signal, 1)
-	signal.Notify(sigchan, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
-	go func() {
-		<-sigchan
-		fmt.Println("Program killed!")
-		Fsys.TearDown()
-		os.Exit(1)
-	}()
 
 	for {
 		input, _ := prompt.Readline()
@@ -57,19 +47,19 @@ func shellLoop(ctx context.Context, currentUser *user.User) {
 		memory.PrintMemUsage()
 		if commands[0] == "reload" {
 			load.ReloadFilesys(ctx)
-			Fsys = fsys.New(maxFileSize)
+			global.Filesys = fsys.New(maxFileSize)
 			os.RemoveAll("output")
 		} else {
-			Fsys = shells.Fs
+			global.Filesys = shells.Fs
 			if shellFlag {
 				continue
 			}
 
-			Fsys.Execute(ctx, commands)
+			global.Filesys.Execute(ctx, commands)
 		}
 
-		currentUser.SetPrompt(prompt, Fsys)
-		shells.SetFilesystem(Fsys)
+		currentUser.SetPrompt(prompt, global.Filesys)
+		shells.SetFilesystem(global.Filesys)
 	}
 }
 
@@ -101,10 +91,19 @@ func init() {
 			logger := log.New(LogFile, time.Now().Format("2006-01-02 15:04:05")+": ", 0)
 			ctx := context.WithValue(context.Background(), "server-logger", logger)
 
-			pubs := publisher.InitDefault()
-			subs := subscriber.InitDefault()
+			pubs, err := publisher.InitDefault(ctx, dep)
+			if err != nil {
+				logger.Println("ERROR: ", err)
+				return
+			}
+			subs, err := subscriber.InitDefault(ctx, dep)
+			if err != nil {
+				logger.Println("ERROR: ", err)
+				return
+			}
 
 			currentUser := user.InitUser(dep)
+			clientID := currentUser.ClientID
 			ctx = context.WithValue(ctx, "role", currentUser.Role)
 			ctx = context.WithValue(ctx, "token", currentUser.Token)
 			ctx = context.WithValue(ctx, "host", dep.Config().Server.Addr)
@@ -113,6 +112,7 @@ func init() {
 			ctx = context.WithValue(ctx, "dependency", dep)
 			ctx = context.WithValue(ctx, "userState", user.ToModelUserState(currentUser))
 			ctx = context.WithValue(ctx, "publisher", pubs)
+			ctx = context.WithValue(ctx, "clientID", clientID)
 
 			err = load.LoadFilesystem(ctx, dep, currentUser.Token)
 			if err != nil {
@@ -120,6 +120,8 @@ func init() {
 				return
 			}
 
+			fmt.Println(clientID, "EI CLIENT ID")
+			go subs.ListenMessage(ctx)
 			go producer.IntermediateHealthCheck(ctx, dep)
 			go producer.KafkaHealthCheck(ctx)
 			shellLoop(ctx, currentUser)
