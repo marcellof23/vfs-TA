@@ -18,9 +18,9 @@ var Command = map[string]PathIndex{
 }
 
 var CommandPubsub = map[string]bool{
-	"cp":     true,
-	"rm":     true,
-	"upload": true,
-	"mkdir":  true,
-	"chmod":  true,
+	"cp":          true,
+	"rm":          true,
+	"upload-sync": true,
+	"mkdir":       true,
+	"chmod":       true,
 }

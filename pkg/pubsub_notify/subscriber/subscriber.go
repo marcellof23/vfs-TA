@@ -62,8 +62,6 @@ func (s *Subscriber) ListenMessage(ctx context.Context) error {
 		return fmt.Errorf("failed to get logger from context")
 	}
 
-	//userState, _ := fsys.GetUserStateFromContext(ctx)
-
 	err := s.Subs.Receive(ctx, func(ctx context.Context, msg *pubsub.Message) {
 		var msgCmd pubsub_notify.MessageCommand
 		if err := json.Unmarshal(msg.Data, &msgCmd); err != nil {
@@ -73,10 +71,14 @@ func (s *Subscriber) ListenMessage(ctx context.Context) error {
 		clientID, _ := fsys.GetClientIDFromContext(ctx)
 		// Message is just for other clients
 		if msgCmd.ClientID != clientID {
-			fmt.Println(msgCmd.ClientID, msgCmd.FullCommand, clientID, "HEHE")
 			comms := strings.Split(msgCmd.FullCommand, " ")
+			fmt.Println(comms)
 			if _, ok := constant.CommandPubsub[comms[0]]; ok {
-				global.Filesys.Execute(ctx, comms, true)
+				if comms[0] == "upload-sync" {
+					global.Filesys.UploadSyncFile(ctx, msgCmd)
+				} else {
+					global.Filesys.Execute(ctx, comms, false)
+				}
 			}
 		}
 

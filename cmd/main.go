@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"os"
 	"strings"
@@ -55,7 +54,7 @@ func shellLoop(ctx context.Context, currentUser *user.User) {
 				continue
 			}
 
-			global.Filesys.Execute(ctx, commands)
+			global.Filesys.Execute(ctx, commands, true)
 		}
 
 		currentUser.SetPrompt(prompt, global.Filesys)
@@ -120,7 +119,6 @@ func init() {
 				return
 			}
 
-			fmt.Println(clientID, "EI CLIENT ID")
 			go subs.ListenMessage(ctx)
 			go producer.IntermediateHealthCheck(ctx, dep)
 			go producer.KafkaHealthCheck(ctx)
