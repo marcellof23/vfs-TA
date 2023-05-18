@@ -13,6 +13,7 @@ import (
 	"github.com/marcellof23/vfs-TA/pkg/chunker"
 	"github.com/marcellof23/vfs-TA/pkg/model"
 	"github.com/marcellof23/vfs-TA/pkg/producer"
+	"github.com/marcellof23/vfs-TA/pkg/pubsub_notify"
 )
 
 // Initiation Virtual MemFilesystem
@@ -35,7 +36,7 @@ func New(maxFileSize int64) *Filesystem {
 
 // testFilessytemCreation initializes the Filesystem by replicating
 // the current root directory and all it's child direcctories.
-func copyFilesystem(ctx context.Context, dirName, replicatePath, targetPath string, fs *Filesystem) *Filesystem {
+func copyFilesystem(ctx context.Context, publish bool, dirName, replicatePath, targetPath string, fs *Filesystem) *Filesystem {
 	var fileName gofs.DirEntry
 	var fi os.FileInfo
 
@@ -55,10 +56,10 @@ func copyFilesystem(ctx context.Context, dirName, replicatePath, targetPath stri
 		mode := fi.Mode()
 		if mode.IsDir() {
 			dirname := fileName.Name()
-			fs.MkDir(ctx, dirname)
+			fs.MkDir(ctx, publish, dirname)
 			fs.MFS.Chmod(dirname, mode.Perm())
 			fs.MFS.Chown(filepath.ToSlash(filepath.Clean(filepath.Join(fs.rootPath, dirname))), userState.UserID, userState.GroupID)
-			copyFilesystem(ctx, dirName+"/"+fileName.Name(), replicatePath+"/"+fileName.Name(), targetPath, fs.directories[fileName.Name()])
+			copyFilesystem(ctx, publish, dirName+"/"+fileName.Name(), replicatePath+"/"+fileName.Name(), targetPath, fs.directories[fileName.Name()])
 		} else {
 			fs.files[fileName.Name()] = &file{
 				name:     fileName.Name(),
@@ -75,6 +76,31 @@ func copyFilesystem(ctx context.Context, dirName, replicatePath, targetPath stri
 			token, err := GetTokenFromContext(ctx)
 			if err != nil {
 				fmt.Println(err)
+			}
+
+			if publish {
+				pubs, err := GetPublisherFromContext(ctx)
+				if err != nil {
+					fmt.Println(err)
+				}
+
+				clientID, err := GetClientIDFromContext(ctx)
+				if err != nil {
+					fmt.Println(err)
+				}
+
+				absDestPath := filepath.ToSlash(filepath.Join(targetPath, fname))
+				// Sync to other client
+				msgSync := pubsub_notify.MessageCommand{
+					FullCommand: fmt.Sprintf("%s %s", "upload-sync", absDestPath),
+					Buffer:      dat,
+					FileMode:    uint64(mode),
+					Uid:         userState.UserID,
+					Gid:         userState.GroupID,
+					ClientID:    clientID,
+				}
+
+				pubs.Publish(ctx, msgSync)
 			}
 
 			msg := producer.Message{

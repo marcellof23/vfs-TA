@@ -45,7 +45,7 @@ func (s *Shell) ClearScreen() {
 }
 
 // ChDir switches you to a different active directory.
-func (s *Shell) ChDir(_ context.Context, dirName string) error {
+func (s *Shell) ChDir(_ context.Context, publish bool, dirName string) error {
 	if dirName == "/" {
 		s.Fs = root
 		return nil

@@ -147,9 +147,9 @@ func (fs *Filesystem) FilesystemAccessAuth(ctx context.Context, role string, isR
 
 	var comms = make([]string, 3)
 	sourceOnly := false
-	comms[1] = args[1].(string)
-	if len(args) > 2 {
-		comms[2] = args[2].(string)
+	comms[1] = args[2].(string)
+	if len(args) > 3 {
+		comms[2] = args[3].(string)
 	} else {
 		sourceOnly = true
 	}

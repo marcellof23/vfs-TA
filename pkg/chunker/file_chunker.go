@@ -3,7 +3,6 @@ package chunker
 import (
 	"bufio"
 	"context"
-	"fmt"
 	"io"
 	"math"
 	"os"
@@ -131,7 +130,6 @@ func (fc *FileChunk) Process(f *os.File) error {
 		wg.Add(1)
 
 		go func(partition int) {
-			fmt.Println("punten", partition)
 			fc.ProcessChunk(buf, &linesPool, &stringPool, partition)
 			wg.Done()
 		}(partition)

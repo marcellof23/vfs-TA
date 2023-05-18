@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/spf13/afero"
+	"github.com/marcellof23/vfs-TA/lib/afero"
 
 	"github.com/marcellof23/vfs-TA/constant"
 )

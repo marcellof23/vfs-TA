@@ -15,6 +15,11 @@ type Config struct {
 	MaxFileSize int64    `yaml:"maxFileSize"`
 	LocalPath   string   `yaml:"backupPathLocal"`
 	RemotePath  string   `yaml:"backupPathIntermediateService"`
+	Pubsub      struct {
+		Topic          string `yaml:"topic"`
+		Project        string `yaml:"projectID"`
+		CredentialFile string `yaml:"credentialsFile"`
+	} `yaml:"pubsub"`
 }
 
 func LoadConfig(file string) (Config, error) {

@@ -15,6 +15,7 @@ import (
 	"github.com/marcellof23/vfs-TA/boot"
 	"github.com/marcellof23/vfs-TA/constant"
 	"github.com/marcellof23/vfs-TA/pkg/model"
+	"github.com/marcellof23/vfs-TA/pkg/pubsub_notify/publisher"
 )
 
 type WalkDirFunc func(path, filename string, fs *Filesystem, err error) error
@@ -62,6 +63,24 @@ func GetHostFromContext(c context.Context) (string, error) {
 		return "", constant.ErrHostNotFound
 	}
 	return host, nil
+}
+
+func GetClientIDFromContext(c context.Context) (string, error) {
+	tmp := c.Value("clientID")
+	clientID, ok := tmp.(string)
+	if !ok {
+		return "", constant.ErrHostNotFound
+	}
+	return clientID, nil
+}
+
+func GetPublisherFromContext(c context.Context) (*publisher.Publisher, error) {
+	tmp := c.Value("publisher")
+	pubs, ok := tmp.(*publisher.Publisher)
+	if !ok {
+		return &publisher.Publisher{}, constant.ErrHostNotFound
+	}
+	return pubs, nil
 }
 
 func SortFiles(m map[string]*file) []string {

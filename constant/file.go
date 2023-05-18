@@ -16,3 +16,11 @@ var Command = map[string]PathIndex{
 	"chmod":   {1, -1},
 	"migrate": {1, -1},
 }
+
+var CommandPubsub = map[string]bool{
+	"cp":          true,
+	"rm":          true,
+	"upload-sync": true,
+	"mkdir":       true,
+	"chmod":       true,
+}

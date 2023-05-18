@@ -25,6 +25,7 @@ type UserResp struct {
 		Username string `json:"Username"`
 		UserID   int    `json:"ID"`
 		GroupID  int    `json:"GroupID"`
+		ClientID string `json:"ClientID"`
 		Role     string `json:"Role"`
 	} `json:"data"`
 	Token string `json:"token"`
@@ -100,6 +101,7 @@ func register(dep *boot.Dependencies) model.UserState {
 			Username: post.Data.Username,
 			Role:     post.Data.Role,
 			Token:    post.Token,
+			ClientID: post.Data.ClientID,
 			UserID:   post.Data.UserID,
 			GroupID:  post.Data.GroupID,
 		}
@@ -156,6 +158,7 @@ func login(dep *boot.Dependencies) model.UserState {
 			Username: post.Data.Username,
 			Role:     post.Data.Role,
 			Token:    post.Token,
+			ClientID: post.Data.ClientID,
 			UserID:   post.Data.UserID,
 			GroupID:  post.Data.GroupID,
 		}

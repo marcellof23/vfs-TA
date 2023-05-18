@@ -16,7 +16,9 @@ import (
 	"time"
 
 	"github.com/briandowns/spinner"
-	"github.com/spf13/afero"
+
+	"github.com/marcellof23/vfs-TA/lib/afero"
+	"github.com/marcellof23/vfs-TA/pkg/pubsub_notify"
 
 	"github.com/marcellof23/vfs-TA/boot"
 	"github.com/marcellof23/vfs-TA/constant"
@@ -90,8 +92,32 @@ func (fs *Filesystem) Stat(filename string) (*FileInfo, error) {
 	return fileInfo, nil
 }
 
+// UploadSyncFile uploads a file to the virtual Filesystem.
+func (fs *Filesystem) UploadSyncFile(ctx context.Context, msgCmd pubsub_notify.MessageCommand) error {
+	comms := strings.Split(msgCmd.FullCommand, " ")
+	destPath := comms[1]
+	userState, err := GetUserStateFromContext(ctx)
+	if err != nil {
+		return err
+	}
+
+	fs.MFS.MkdirAll(destPath, 0o775)
+	fs.Touch(ctx, filepath.Clean(destPath))
+	destFile, _ := fs.MFS.OpenFile(destPath, os.O_RDWR|os.O_CREATE, os.FileMode(msgCmd.FileMode))
+	fs.MFS.Chmod(filepath.Clean(destPath), os.FileMode(msgCmd.FileMode))
+	fs.MFS.Chown(filepath.Clean(destPath), userState.UserID, userState.GroupID)
+
+	fileSz := int64(len(msgCmd.Buffer))
+	if fileSz <= int64(LargeFileConstraint) {
+		destFile.Truncate(fileSz)
+		destFile.Write(msgCmd.Buffer)
+	}
+
+	return nil
+}
+
 // UploadFile uploads a file to the virtual Filesystem.
-func (fs *Filesystem) UploadFile(ctx context.Context, sourcePath, destPath string) error {
+func (fs *Filesystem) UploadFile(ctx context.Context, publish bool, sourcePath, destPath string) error {
 	s := spinner.New(spinner.CharSets[14], 150*time.Millisecond) // Build our new spinner
 	s.Start()
 	s.Suffix = fmt.Sprintf(" Uploading in progress...") // Start the spinner
@@ -128,41 +154,69 @@ func (fs *Filesystem) UploadFile(ctx context.Context, sourcePath, destPath strin
 		return err
 	}
 
-	msg := producer.Message{
-		Command:       "upload",
-		Token:         token,
-		AbsPathSource: destFile.Name(),
-		AbsPathDest:   destFS.rootPath,
-		FileMode:      uint64(fl.Mode()),
-		Buffer:        []byte{},
-		Uid:           userState.UserID,
-		Gid:           userState.GroupID,
-	}
+	if publish {
+		pubs, err := GetPublisherFromContext(ctx)
+		if err != nil {
+			return err
+		}
 
-	if fl.Size() <= int64(LargeFileConstraint) {
-		destFile.Truncate(fl.Size())
-		destFile.Write(dat)
+		clientID, err := GetClientIDFromContext(ctx)
+		if err != nil {
+			return err
+		}
 
-		msg.Buffer = dat
+		absDestPath := fs.absPath(destPath)
+		// Sync to other client
+		msgSync := pubsub_notify.MessageCommand{
+			FullCommand: fmt.Sprintf("%s %s", "upload-sync", "/"+absDestPath),
+			Buffer:      dat,
+			FileMode:    uint64(mode),
+			Uid:         userState.UserID,
+			Gid:         userState.GroupID,
+			ClientID:    clientID,
+		}
 
-		r := producer.Retry(producer.ProduceCommand, 3e9)
-		go r(ctx, msg)
-	} else {
-		producer.ProduceCommand(ctx, msg)
+		err = pubs.Publish(ctx, msgSync)
+		if err != nil {
+			return err
+		}
 
-		fileChunker := chunker.FileChunk{
-			Ctx:           ctx,
-			Command:       "write",
+		msg := producer.Message{
+			Command:       "upload",
 			Token:         token,
 			AbsPathSource: destFile.Name(),
 			AbsPathDest:   destFS.rootPath,
+			FileMode:      uint64(fl.Mode()),
+			Buffer:        []byte{},
 			Uid:           userState.UserID,
 			Gid:           userState.GroupID,
 		}
 
-		err := fileChunker.Process(sourceFile)
-		if err != nil {
-			return err
+		if fl.Size() <= int64(LargeFileConstraint) {
+			destFile.Truncate(fl.Size())
+			destFile.Write(dat)
+
+			msg.Buffer = dat
+
+			r := producer.Retry(producer.ProduceCommand, 3e9)
+			go r(ctx, msg)
+		} else {
+			producer.ProduceCommand(ctx, msg)
+
+			fileChunker := chunker.FileChunk{
+				Ctx:           ctx,
+				Command:       "write",
+				Token:         token,
+				AbsPathSource: destFile.Name(),
+				AbsPathDest:   destFS.rootPath,
+				Uid:           userState.UserID,
+				Gid:           userState.GroupID,
+			}
+
+			err := fileChunker.Process(sourceFile)
+			if err != nil {
+				return err
+			}
 		}
 	}
 
@@ -170,10 +224,10 @@ func (fs *Filesystem) UploadFile(ctx context.Context, sourcePath, destPath strin
 }
 
 // UploadDir uploads a file to the virtual Filesystem.
-func (fs *Filesystem) UploadDir(ctx context.Context, sourcePath, destPath string) error {
+func (fs *Filesystem) UploadDir(ctx context.Context, publish bool, sourcePath, destPath string) error {
 	s := spinner.New(spinner.CharSets[14], 150*time.Millisecond) // Build our new spinner
 	s.Start()
-	s.Suffix = fmt.Sprintf("Uploading in progress...") // Start the spinner
+	s.Suffix = fmt.Sprintf(" Uploading in progress...") // Start the spinner
 	defer func() {
 		s.Stop()
 	}()
@@ -186,14 +240,14 @@ func (fs *Filesystem) UploadDir(ctx context.Context, sourcePath, destPath string
 	}
 
 	destPathBase := filepath.Base(destPath)
-	fsDest.MkDir(ctx, destPathBase)
+	fsDest.MkDir(ctx, publish, destPathBase)
 
 	dir, _ := os.Stat(sourcePath)
 	fsDest.MFS.Chmod(destPathBase, dir.Mode())
 	fsDest.MFS.Chown(destPathBase, userState.UserID, userState.GroupID)
 	fsDest = fsDest.directories[destPathBase]
 
-	copyFilesystem(ctx, ".", sourcePath, fs.absPath(destPath), fsDest)
+	copyFilesystem(ctx, publish, ".", sourcePath, fs.absPath(destPath), fsDest)
 	return nil
 }
 
@@ -242,7 +296,7 @@ func (fs *Filesystem) Touch(ctx context.Context, filename string) error {
 }
 
 // MkDir makes a virtual directory.
-func (fs *Filesystem) MkDir(ctx context.Context, dirName string) error {
+func (fs *Filesystem) MkDir(ctx context.Context, publish bool, dirName string) error {
 	dirName = fs.absPath(dirName)
 	currFs := root
 	segments := strings.Split(dirName, "/")
@@ -297,18 +351,41 @@ func (fs *Filesystem) MkDir(ctx context.Context, dirName string) error {
 			currFs.directories[segment] = &Filesystem{currFs.MemFilesystem, newDir}
 			currFs = currFs.directories[segment]
 
-			msg := producer.Message{
-				Command:       "mkdir",
-				Token:         token,
-				AbsPathSource: dirName,
-				Buffer:        []byte{},
-				FileMode:      0o777,
-				Uid:           userState.UserID,
-				Gid:           userState.GroupID,
-			}
+			if publish {
+				pubs, err := GetPublisherFromContext(ctx)
+				if err != nil {
+					return err
+				}
 
-			r := producer.Retry(producer.ProduceCommand, 3e9)
-			go r(ctx, msg)
+				clientID, err := GetClientIDFromContext(ctx)
+				if err != nil {
+					return err
+				}
+
+				// Sync to other client
+				msgSync := pubsub_notify.MessageCommand{
+					FullCommand: fmt.Sprintf("%s %s", "mkdir", "/"+dirName),
+					ClientID:    clientID,
+				}
+
+				err = pubs.Publish(ctx, msgSync)
+				if err != nil {
+					return err
+				}
+
+				msg := producer.Message{
+					Command:       "mkdir",
+					Token:         token,
+					AbsPathSource: dirName,
+					Buffer:        []byte{},
+					FileMode:      0o777,
+					Uid:           userState.UserID,
+					Gid:           userState.GroupID,
+				}
+
+				r := producer.Retry(producer.ProduceCommand, 3e9)
+				go r(ctx, msg)
+			}
 		}
 	}
 
@@ -316,7 +393,7 @@ func (fs *Filesystem) MkDir(ctx context.Context, dirName string) error {
 }
 
 // RemoveFile removes a File from the virtual Filesystem.
-func (fs *Filesystem) RemoveFile(ctx context.Context, filename string) error {
+func (fs *Filesystem) RemoveFile(ctx context.Context, publish bool, filename string) error {
 	absFilename := fs.absPath(filename)
 
 	info, err := fs.Stat(filename)
@@ -325,7 +402,7 @@ func (fs *Filesystem) RemoveFile(ctx context.Context, filename string) error {
 		return fmt.Errorf("rm : cannot remove '%s': no such file or directory", filename)
 	}
 
-	if info.IsDir() {
+	if info != nil && info.IsDir() {
 		return fmt.Errorf("rm : cannot remove '%s': Is a directory", filename)
 	}
 
@@ -347,22 +424,49 @@ func (fs *Filesystem) RemoveFile(ctx context.Context, filename string) error {
 		return err
 	}
 
-	msg := producer.Message{
-		Command:       "rm",
-		Token:         token,
-		AbsPathSource: absFilename,
-		AbsPathDest:   "",
-		Buffer:        []byte{},
-	}
+	if publish {
 
-	r := producer.Retry(producer.ProduceCommand, 3e9)
-	go r(ctx, msg)
+		pubs, err := GetPublisherFromContext(ctx)
+		if err != nil {
+			return err
+		}
+
+		clientID, err := GetClientIDFromContext(ctx)
+		if err != nil {
+			return err
+		}
+
+		fname := filepath.ToSlash("/" + absFilename)
+		// Sync to other client
+		msgSync := pubsub_notify.MessageCommand{
+
+			FullCommand: fmt.Sprintf("%s %s", "rm", fname),
+			ClientID:    clientID,
+		}
+
+		err = pubs.Publish(ctx, msgSync)
+		if err != nil {
+			return err
+		}
+
+		// Send to intermediate service
+		msg := producer.Message{
+			Command:       "rm",
+			Token:         token,
+			AbsPathSource: absFilename,
+			AbsPathDest:   "",
+			Buffer:        []byte{},
+		}
+
+		r := producer.Retry(producer.ProduceCommand, 3e9)
+		go r(ctx, msg)
+	}
 
 	return nil
 }
 
 // RemoveDir removes a directory from the virtual Filesystem.
-func (fs *Filesystem) RemoveDir(ctx context.Context, dirname string) error {
+func (fs *Filesystem) RemoveDir(ctx context.Context, publish bool, dirname string) error {
 	fsTarget, _ := fs.searchFS(dirname)
 	dirname = fs.absPath(dirname)
 	_, err := fs.Stat(dirname)
@@ -371,7 +475,7 @@ func (fs *Filesystem) RemoveDir(ctx context.Context, dirname string) error {
 	}
 
 	walkFn := func(rootpath, path string, fss *Filesystem, err error) error {
-		fs.RemoveFile(ctx, filepath.ToSlash(filepath.Join(rootpath, path)))
+		fs.RemoveFile(ctx, false, filepath.ToSlash(filepath.Join(rootpath, path)))
 		return nil
 	}
 
@@ -394,22 +498,47 @@ func (fs *Filesystem) RemoveDir(ctx context.Context, dirname string) error {
 		return err
 	}
 
-	msg := producer.Message{
-		Command:       "rm -r",
-		Token:         token,
-		AbsPathSource: dirname,
-		AbsPathDest:   "",
-		Buffer:        []byte{},
-	}
+	if publish {
+		pubs, err := GetPublisherFromContext(ctx)
+		if err != nil {
+			return err
+		}
 
-	r := producer.Retry(producer.ProduceCommand, 3e9)
-	go r(ctx, msg)
+		clientID, err := GetClientIDFromContext(ctx)
+		if err != nil {
+			return err
+		}
+
+		dname := filepath.ToSlash("/" + dirname)
+
+		// Sync to other client
+		msgSync := pubsub_notify.MessageCommand{
+			FullCommand: fmt.Sprintf("%s %s", "rm -r", dname),
+			ClientID:    clientID,
+		}
+
+		err = pubs.Publish(ctx, msgSync)
+		if err != nil {
+			return err
+		}
+
+		msg := producer.Message{
+			Command:       "rm -r",
+			Token:         token,
+			AbsPathSource: dirname,
+			AbsPathDest:   "",
+			Buffer:        []byte{},
+		}
+
+		r := producer.Retry(producer.ProduceCommand, 3e9)
+		go r(ctx, msg)
+	}
 
 	return nil
 }
 
 // CopyFile copy a file from source to destination on the virtual Filesystem.
-func (fs *Filesystem) CopyFile(ctx context.Context, pathSource, pathDest string) error {
+func (fs *Filesystem) CopyFile(ctx context.Context, publish bool, pathSource, pathDest string) error {
 	flSource, err := fs.Stat(pathSource)
 	if err != nil {
 		return errors.New("cp: no such file or directory")
@@ -441,25 +570,48 @@ func (fs *Filesystem) CopyFile(ctx context.Context, pathSource, pathDest string)
 		return err
 	}
 
-	msg := producer.Message{
-		Command:       "cp",
-		Token:         token,
-		AbsPathSource: pathSourceFileName,
-		AbsPathDest:   pathTargetFileName,
-		Buffer:        []byte{},
-		FileMode:      uint64(flSource.Mode()),
-		Uid:           userState.UserID,
-		Gid:           userState.UserID,
-	}
+	if publish {
+		pubs, err := GetPublisherFromContext(ctx)
+		if err != nil {
+			return err
+		}
 
-	r := producer.Retry(producer.ProduceCommand, 3e9)
-	go r(ctx, msg)
+		clientID, err := GetClientIDFromContext(ctx)
+		if err != nil {
+			return err
+		}
+
+		// Sync to other client
+		msgSync := pubsub_notify.MessageCommand{
+			FullCommand: fmt.Sprintf("%s %s %s", "cp", "/"+pathSourceFileName, "/"+pathTargetFileName),
+			ClientID:    clientID,
+		}
+
+		err = pubs.Publish(ctx, msgSync)
+		if err != nil {
+			return err
+		}
+
+		msg := producer.Message{
+			Command:       "cp",
+			Token:         token,
+			AbsPathSource: pathSourceFileName,
+			AbsPathDest:   pathTargetFileName,
+			Buffer:        []byte{},
+			FileMode:      uint64(flSource.Mode()),
+			Uid:           userState.UserID,
+			Gid:           userState.UserID,
+		}
+
+		r := producer.Retry(producer.ProduceCommand, 3e9)
+		go r(ctx, msg)
+	}
 
 	return nil
 }
 
 // CopyDir copy a file from source to destination on the virtual Filesystem.
-func (fs *Filesystem) CopyDir(ctx context.Context, pathSource, pathDest string) error {
+func (fs *Filesystem) CopyDir(ctx context.Context, publish bool, pathSource, pathDest string) error {
 	fsSource, _ := fs.searchFS(pathSource)
 	fsDest, _ := fs.searchFS(pathDest)
 
@@ -476,15 +628,14 @@ func (fs *Filesystem) CopyDir(ctx context.Context, pathSource, pathDest string) 
 			remainingPath := filepath.ToSlash(filepath.Join(splitPaths...))
 
 			newDir := filepath.ToSlash(filepath.Join(pathDest, remainingPath))
-			fsDest.MkDir(ctx, newDir)
+			fsDest.MkDir(ctx, false, newDir)
 		} else {
 			splitPaths := strings.Split(rootPath, "/")
 			splitPaths = splitPaths[1:]
 			remainingPath := filepath.ToSlash(filepath.Join(splitPaths...))
 
 			newFile := filepath.ToSlash(filepath.Join(pathDest, remainingPath, path))
-			fs.CopyFile(ctx, filepath.ToSlash(filepath.Join(rootPath, path)), newFile)
-
+			fs.CopyFile(ctx, false, filepath.ToSlash(filepath.Join(rootPath, path)), newFile)
 		}
 		return nil
 	}
@@ -494,11 +645,36 @@ func (fs *Filesystem) CopyDir(ctx context.Context, pathSource, pathDest string) 
 		return err
 	}
 
+	if publish {
+		pubs, err := GetPublisherFromContext(ctx)
+		if err != nil {
+			return err
+		}
+
+		clientID, err := GetClientIDFromContext(ctx)
+		if err != nil {
+			return err
+		}
+
+		absPathSource := fs.absPath(pathSource)
+		absPathDest := fs.absPath(pathDest)
+		// Sync to other client
+		msgSync := pubsub_notify.MessageCommand{
+			FullCommand: fmt.Sprintf("%s %s %s", "cp -r", "/"+absPathSource, "/"+absPathDest),
+			ClientID:    clientID,
+		}
+
+		err = pubs.Publish(ctx, msgSync)
+		if err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 
 // Move copy a file from source to destination on the virtual Filesystem.
-func (fs *Filesystem) Move(ctx context.Context, pathSource, pathDest string) error {
+func (fs *Filesystem) Move(ctx context.Context, publish bool, pathSource, pathDest string) error {
 	pathSource = filepath.Base(pathSource)
 	pathDest = filepath.Base(pathDest)
 
@@ -513,17 +689,17 @@ func (fs *Filesystem) Move(ctx context.Context, pathSource, pathDest string) err
 	}
 
 	if !fileSource.IsDir() {
-		err = fs.CopyFile(ctx, pathSource, pathDest)
+		err = fs.CopyFile(ctx, publish, pathSource, pathDest)
 		if err != nil {
 			return errors.New("file or Directory does not exist")
 		}
-		fs.RemoveFile(ctx, pathSource)
+		fs.RemoveFile(ctx, publish, pathSource)
 	} else {
-		err = fs.CopyDir(ctx, pathSource, pathDest)
+		err = fs.CopyDir(ctx, publish, pathSource, pathDest)
 		if err != nil {
 			return errors.New("file or Directory does not exist")
 		}
-		fs.RemoveDir(ctx, pathSource)
+		fs.RemoveDir(ctx, publish, pathSource)
 	}
 
 	return nil
@@ -547,7 +723,7 @@ func (fs *Filesystem) ListDir() {
 	}
 }
 
-func (fs *Filesystem) Chmod(ctx context.Context, perm, name string) error {
+func (fs *Filesystem) Chmod(ctx context.Context, publish bool, perm, name string) error {
 	absName := fs.absPath(name)
 	_, err := fs.verifyPath(name)
 	if err != nil {
@@ -568,17 +744,40 @@ func (fs *Filesystem) Chmod(ctx context.Context, perm, name string) error {
 		return err
 	}
 
-	msg := producer.Message{
-		Command:       "chmod",
-		Token:         token,
-		AbsPathSource: absName,
-		FileMode:      mode,
-		AbsPathDest:   "",
-		Buffer:        []byte{},
-	}
+	if publish {
+		pubs, err := GetPublisherFromContext(ctx)
+		if err != nil {
+			return err
+		}
 
-	r := producer.Retry(producer.ProduceCommand, 3e9)
-	go r(ctx, msg)
+		clientID, err := GetClientIDFromContext(ctx)
+		if err != nil {
+			return err
+		}
+
+		// Sync to other client
+		msgSync := pubsub_notify.MessageCommand{
+			FullCommand: fmt.Sprintf("%s %s %s", "chmod", perm, "/"+absName),
+			ClientID:    clientID,
+		}
+
+		err = pubs.Publish(ctx, msgSync)
+		if err != nil {
+			return err
+		}
+
+		msg := producer.Message{
+			Command:       "chmod",
+			Token:         token,
+			AbsPathSource: absName,
+			FileMode:      mode,
+			AbsPathDest:   "",
+			Buffer:        []byte{},
+		}
+
+		r := producer.Retry(producer.ProduceCommand, 3e9)
+		go r(ctx, msg)
+	}
 
 	return nil
 }
@@ -589,7 +788,7 @@ type GetFileResp struct {
 	Data    []byte `json:"data"`
 }
 
-func (fs *Filesystem) Cat(ctx context.Context, path string) error {
+func (fs *Filesystem) Cat(ctx context.Context, publish bool, path string) error {
 	path = fs.absPath(path)
 	data, err := afero.ReadFile(fs.MFS, path)
 	if err != nil {
@@ -642,7 +841,7 @@ func (fs *Filesystem) Cat(ctx context.Context, path string) error {
 	return nil
 }
 
-func (fs *Filesystem) DownloadFile(ctx context.Context, pathSource, pathDest string) error {
+func (fs *Filesystem) DownloadFile(ctx context.Context, publish bool, pathSource, pathDest string) error {
 	pathSource = fs.absPath(pathSource)
 
 	_, err := fs.Stat(pathSource)
@@ -706,7 +905,7 @@ func (fs *Filesystem) DownloadFile(ctx context.Context, pathSource, pathDest str
 	return nil
 }
 
-func (fs *Filesystem) DownloadRecursive(ctx context.Context, pathSource, pathDest string) error {
+func (fs *Filesystem) DownloadRecursive(ctx context.Context, publish bool, pathSource, pathDest string) error {
 	fsSource, _ := fs.searchFS(pathSource)
 
 	_, err := fs.Stat(pathSource)
@@ -794,7 +993,7 @@ type MigrateResp struct {
 	Error   string `json:"error"`
 }
 
-func (fs *Filesystem) Migrate(ctx context.Context, pathSource, pathDest string) error {
+func (fs *Filesystem) Migrate(ctx context.Context, publish bool, pathSource, pathDest string) error {
 	s := spinner.New(spinner.CharSets[14], 150*time.Millisecond) // Build our new spinner
 	s.Start()
 	s.Suffix = fmt.Sprintf(" Migrating in progress...") // Start the spinner
@@ -862,14 +1061,20 @@ func (fs *Filesystem) Migrate(ctx context.Context, pathSource, pathDest string) 
 	return nil
 }
 
-func (fs *Filesystem) Testing(path string) {
+func (fs *Filesystem) Testing(ctx context.Context, path string) {
 
+	pubs, _ := GetPublisherFromContext(ctx)
+	clientID, _ := GetClientIDFromContext(ctx)
+	msg := pubsub_notify.MessageCommand{
+		FullCommand: path,
+		ClientID:    clientID,
+	}
+
+	pubs.Publish(ctx, msg)
 	if path == "hehe" {
 		fs.MFS.List()
 	}
 
-	fmt.Println(&fs.MFS, &fs.directories["boot-vfs2"].MFS)
-	//	fmt.Println(fs.getAccess(path, 1056, 1056))
 }
 
 // SaveState aves the state of the VFS at this time.
