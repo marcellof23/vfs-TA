@@ -141,13 +141,8 @@ func (fs *Filesystem) UploadFile(ctx context.Context, publish bool, sourcePath, 
 	}
 	defer sourceFile.Close()
 
-	dat, _ := os.ReadFile(sourcePath)
-	mode := fl.Mode()
-
 	fs.Touch(ctx, destPath)
 	destFile, _ := fs.MFS.OpenFile(destPath, os.O_RDWR|os.O_CREATE, fl.Mode())
-	fs.MFS.Chmod(filepath.Clean(destPath), mode.Perm())
-	fs.MFS.Chown(filepath.Clean(destPath), userState.UserID, userState.GroupID)
 
 	token, err := GetTokenFromContext(ctx)
 	if err != nil {
@@ -160,10 +155,22 @@ func (fs *Filesystem) UploadFile(ctx context.Context, publish bool, sourcePath, 
 			return err
 		}
 
+<<<<<<< HEAD
 		clientID, err := GetClientIDFromContext(ctx)
 		if err != nil {
 			return err
 		}
+=======
+	if fl.Size() <= int64(LargeFileConstraint) {
+		dat, _ := os.ReadFile(sourcePath)
+		mode := fl.Mode()
+
+		fs.MFS.Chmod(filepath.Clean(destPath), mode.Perm())
+		fs.MFS.Chown(filepath.Clean(destPath), userState.UserID, userState.GroupID)
+
+		destFile.Truncate(fl.Size())
+		destFile.Write(dat)
+>>>>>>> 2d123c6 (pull)
 
 		absDestPath := fs.absPath(destPath)
 		// Sync to other client
