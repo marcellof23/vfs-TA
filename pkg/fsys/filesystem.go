@@ -18,6 +18,7 @@ import (
 	"github.com/briandowns/spinner"
 
 	"github.com/marcellof23/vfs-TA/lib/afero"
+	"github.com/marcellof23/vfs-TA/pkg/model"
 	"github.com/marcellof23/vfs-TA/pkg/pubsub_notify"
 
 	"github.com/marcellof23/vfs-TA/boot"
@@ -28,6 +29,7 @@ import (
 
 var (
 	LargeFileConstraint = 50 * 1024 * 1024 // 50MB
+	FileSizeMap         = make(map[string]int64, 0)
 )
 
 type file struct {
@@ -50,8 +52,9 @@ type Filesystem struct {
 
 type FileInfo struct {
 	os.FileInfo
-	Uid int
-	Gid int
+	Uid      int
+	Gid      int
+	IsLoaded bool
 }
 
 // Root node.
@@ -85,6 +88,7 @@ func (fs *Filesystem) Stat(filename string) (*FileInfo, error) {
 
 	fileInfo := &FileInfo{
 		FileInfo: info,
+		IsLoaded: fs.MFS.IsLoaded(path),
 		Uid:      fs.MFS.Uid(path),
 		Gid:      fs.MFS.Gid(path),
 	}
@@ -117,7 +121,7 @@ func (fs *Filesystem) UploadSyncFile(ctx context.Context, msgCmd pubsub_notify.M
 }
 
 // UploadFile uploads a file to the virtual Filesystem.
-func (fs *Filesystem) UploadFile(ctx context.Context, publish bool, sourcePath, destPath string) error {
+func (fs *Filesystem) UploadFile(ctx context.Context, publishing model.Publishing, sourcePath, destPath string) error {
 	s := spinner.New(spinner.CharSets[14], 150*time.Millisecond) // Build our new spinner
 	s.Start()
 	s.Suffix = fmt.Sprintf(" Uploading in progress...") // Start the spinner
@@ -154,7 +158,7 @@ func (fs *Filesystem) UploadFile(ctx context.Context, publish bool, sourcePath, 
 		return err
 	}
 
-	if publish {
+	if publishing.PublishSync {
 		pubs, err := GetPublisherFromContext(ctx)
 		if err != nil {
 			return err
@@ -180,7 +184,9 @@ func (fs *Filesystem) UploadFile(ctx context.Context, publish bool, sourcePath, 
 		if err != nil {
 			return err
 		}
+	}
 
+	if publishing.PublishIntermediate {
 		msg := producer.Message{
 			Command:       "upload",
 			Token:         token,
@@ -224,7 +230,7 @@ func (fs *Filesystem) UploadFile(ctx context.Context, publish bool, sourcePath, 
 }
 
 // UploadDir uploads a file to the virtual Filesystem.
-func (fs *Filesystem) UploadDir(ctx context.Context, publish bool, sourcePath, destPath string) error {
+func (fs *Filesystem) UploadDir(ctx context.Context, publishing model.Publishing, sourcePath, destPath string) error {
 	s := spinner.New(spinner.CharSets[14], 150*time.Millisecond) // Build our new spinner
 	s.Start()
 	s.Suffix = fmt.Sprintf(" Uploading in progress...") // Start the spinner
@@ -240,14 +246,14 @@ func (fs *Filesystem) UploadDir(ctx context.Context, publish bool, sourcePath, d
 	}
 
 	destPathBase := filepath.Base(destPath)
-	fsDest.MkDir(ctx, publish, destPathBase)
+	fsDest.MkDir(ctx, publishing, destPathBase)
 
 	dir, _ := os.Stat(sourcePath)
 	fsDest.MFS.Chmod(destPathBase, dir.Mode())
 	fsDest.MFS.Chown(destPathBase, userState.UserID, userState.GroupID)
 	fsDest = fsDest.directories[destPathBase]
 
-	copyFilesystem(ctx, publish, ".", sourcePath, fs.absPath(destPath), fsDest)
+	copyFilesystem(ctx, publishing, ".", sourcePath, fs.absPath(destPath), fsDest)
 	return nil
 }
 
@@ -296,7 +302,7 @@ func (fs *Filesystem) Touch(ctx context.Context, filename string) error {
 }
 
 // MkDir makes a virtual directory.
-func (fs *Filesystem) MkDir(ctx context.Context, publish bool, dirName string) error {
+func (fs *Filesystem) MkDir(ctx context.Context, publishing model.Publishing, dirName string) error {
 	dirName = fs.absPath(dirName)
 	currFs := root
 	segments := strings.Split(dirName, "/")
@@ -351,7 +357,7 @@ func (fs *Filesystem) MkDir(ctx context.Context, publish bool, dirName string) e
 			currFs.directories[segment] = &Filesystem{currFs.MemFilesystem, newDir}
 			currFs = currFs.directories[segment]
 
-			if publish {
+			if publishing.PublishSync {
 				pubs, err := GetPublisherFromContext(ctx)
 				if err != nil {
 					return err
@@ -393,7 +399,7 @@ func (fs *Filesystem) MkDir(ctx context.Context, publish bool, dirName string) e
 }
 
 // RemoveFile removes a File from the virtual Filesystem.
-func (fs *Filesystem) RemoveFile(ctx context.Context, publish bool, filename string) error {
+func (fs *Filesystem) RemoveFile(ctx context.Context, publishing model.Publishing, filename string) error {
 	absFilename := fs.absPath(filename)
 
 	info, err := fs.Stat(filename)
@@ -424,8 +430,7 @@ func (fs *Filesystem) RemoveFile(ctx context.Context, publish bool, filename str
 		return err
 	}
 
-	if publish {
-
+	if publishing.PublishSync {
 		pubs, err := GetPublisherFromContext(ctx)
 		if err != nil {
 			return err
@@ -448,7 +453,9 @@ func (fs *Filesystem) RemoveFile(ctx context.Context, publish bool, filename str
 		if err != nil {
 			return err
 		}
+	}
 
+	if publishing.PublishIntermediate {
 		// Send to intermediate service
 		msg := producer.Message{
 			Command:       "rm",
@@ -466,7 +473,7 @@ func (fs *Filesystem) RemoveFile(ctx context.Context, publish bool, filename str
 }
 
 // RemoveDir removes a directory from the virtual Filesystem.
-func (fs *Filesystem) RemoveDir(ctx context.Context, publish bool, dirname string) error {
+func (fs *Filesystem) RemoveDir(ctx context.Context, publishing model.Publishing, dirname string) error {
 	fsTarget, _ := fs.searchFS(dirname)
 	dirname = fs.absPath(dirname)
 	_, err := fs.Stat(dirname)
@@ -475,7 +482,9 @@ func (fs *Filesystem) RemoveDir(ctx context.Context, publish bool, dirname strin
 	}
 
 	walkFn := func(rootpath, path string, fss *Filesystem, err error) error {
-		fs.RemoveFile(ctx, false, filepath.ToSlash(filepath.Join(rootpath, path)))
+		publishing2 := publishing
+		publishing2.PublishSync = false
+		fs.RemoveFile(ctx, publishing2, filepath.ToSlash(filepath.Join(rootpath, path)))
 		return nil
 	}
 
@@ -498,7 +507,7 @@ func (fs *Filesystem) RemoveDir(ctx context.Context, publish bool, dirname strin
 		return err
 	}
 
-	if publish {
+	if publishing.PublishSync {
 		pubs, err := GetPublisherFromContext(ctx)
 		if err != nil {
 			return err
@@ -521,7 +530,9 @@ func (fs *Filesystem) RemoveDir(ctx context.Context, publish bool, dirname strin
 		if err != nil {
 			return err
 		}
+	}
 
+	if publishing.PublishIntermediate {
 		msg := producer.Message{
 			Command:       "rm -r",
 			Token:         token,
@@ -538,7 +549,7 @@ func (fs *Filesystem) RemoveDir(ctx context.Context, publish bool, dirname strin
 }
 
 // CopyFile copy a file from source to destination on the virtual Filesystem.
-func (fs *Filesystem) CopyFile(ctx context.Context, publish bool, pathSource, pathDest string) error {
+func (fs *Filesystem) CopyFile(ctx context.Context, publishing model.Publishing, pathSource, pathDest string) error {
 	flSource, err := fs.Stat(pathSource)
 	if err != nil {
 		return errors.New("cp: no such file or directory")
@@ -570,7 +581,7 @@ func (fs *Filesystem) CopyFile(ctx context.Context, publish bool, pathSource, pa
 		return err
 	}
 
-	if publish {
+	if publishing.PublishSync {
 		pubs, err := GetPublisherFromContext(ctx)
 		if err != nil {
 			return err
@@ -591,7 +602,9 @@ func (fs *Filesystem) CopyFile(ctx context.Context, publish bool, pathSource, pa
 		if err != nil {
 			return err
 		}
+	}
 
+	if publishing.PublishIntermediate {
 		msg := producer.Message{
 			Command:       "cp",
 			Token:         token,
@@ -611,7 +624,7 @@ func (fs *Filesystem) CopyFile(ctx context.Context, publish bool, pathSource, pa
 }
 
 // CopyDir copy a file from source to destination on the virtual Filesystem.
-func (fs *Filesystem) CopyDir(ctx context.Context, publish bool, pathSource, pathDest string) error {
+func (fs *Filesystem) CopyDir(ctx context.Context, publishing model.Publishing, pathSource, pathDest string) error {
 	fsSource, _ := fs.searchFS(pathSource)
 	fsDest, _ := fs.searchFS(pathDest)
 
@@ -628,14 +641,16 @@ func (fs *Filesystem) CopyDir(ctx context.Context, publish bool, pathSource, pat
 			remainingPath := filepath.ToSlash(filepath.Join(splitPaths...))
 
 			newDir := filepath.ToSlash(filepath.Join(pathDest, remainingPath))
-			fsDest.MkDir(ctx, false, newDir)
+			fsDest.MkDir(ctx, publishing, newDir)
 		} else {
 			splitPaths := strings.Split(rootPath, "/")
 			splitPaths = splitPaths[1:]
 			remainingPath := filepath.ToSlash(filepath.Join(splitPaths...))
 
 			newFile := filepath.ToSlash(filepath.Join(pathDest, remainingPath, path))
-			fs.CopyFile(ctx, false, filepath.ToSlash(filepath.Join(rootPath, path)), newFile)
+			publishing2 := publishing
+			publishing2.PublishSync = false
+			fs.CopyFile(ctx, publishing2, filepath.ToSlash(filepath.Join(rootPath, path)), newFile)
 		}
 		return nil
 	}
@@ -645,7 +660,7 @@ func (fs *Filesystem) CopyDir(ctx context.Context, publish bool, pathSource, pat
 		return err
 	}
 
-	if publish {
+	if publishing.PublishSync {
 		pubs, err := GetPublisherFromContext(ctx)
 		if err != nil {
 			return err
@@ -674,7 +689,7 @@ func (fs *Filesystem) CopyDir(ctx context.Context, publish bool, pathSource, pat
 }
 
 // Move copy a file from source to destination on the virtual Filesystem.
-func (fs *Filesystem) Move(ctx context.Context, publish bool, pathSource, pathDest string) error {
+func (fs *Filesystem) Move(ctx context.Context, publishing model.Publishing, pathSource, pathDest string) error {
 	pathSource = filepath.Base(pathSource)
 	pathDest = filepath.Base(pathDest)
 
@@ -689,17 +704,17 @@ func (fs *Filesystem) Move(ctx context.Context, publish bool, pathSource, pathDe
 	}
 
 	if !fileSource.IsDir() {
-		err = fs.CopyFile(ctx, publish, pathSource, pathDest)
+		err = fs.CopyFile(ctx, publishing, pathSource, pathDest)
 		if err != nil {
 			return errors.New("file or Directory does not exist")
 		}
-		fs.RemoveFile(ctx, publish, pathSource)
+		fs.RemoveFile(ctx, publishing, pathSource)
 	} else {
-		err = fs.CopyDir(ctx, publish, pathSource, pathDest)
+		err = fs.CopyDir(ctx, publishing, pathSource, pathDest)
 		if err != nil {
 			return errors.New("file or Directory does not exist")
 		}
-		fs.RemoveDir(ctx, publish, pathSource)
+		fs.RemoveDir(ctx, publishing, pathSource)
 	}
 
 	return nil
@@ -788,7 +803,7 @@ type GetFileResp struct {
 	Data    []byte `json:"data"`
 }
 
-func (fs *Filesystem) Cat(ctx context.Context, publish bool, path string) error {
+func (fs *Filesystem) Cat(ctx context.Context, publishing model.Publishing, path string) error {
 	path = fs.absPath(path)
 	data, err := afero.ReadFile(fs.MFS, path)
 	if err != nil {
@@ -832,7 +847,7 @@ func (fs *Filesystem) Cat(ctx context.Context, publish bool, path string) error 
 			return errors.New("failed to unmarshal file body")
 		}
 
-		LruCache.Put(path, int64(len(body)), body, fs)
+		LruCache.Put(path, int64(len(fileResp.Data)), fileResp.Data, fs)
 		fmt.Print(string(fileResp.Data))
 
 	} else {
@@ -858,6 +873,8 @@ func (fs *Filesystem) DownloadFile(ctx context.Context, publish bool, pathSource
 	if err != nil {
 		return err
 	}
+
+	LruCache.Get(pathSource)
 
 	defer f.Close()
 
@@ -944,7 +961,6 @@ func (fs *Filesystem) DownloadRecursive(ctx context.Context, publish bool, pathS
 				if err != nil {
 					return err
 				}
-
 				dep, ok := ctx.Value("dependency").(*boot.Dependencies)
 				if !ok {
 					return errors.New("failed to get dependency from context")

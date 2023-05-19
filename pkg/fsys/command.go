@@ -6,6 +6,7 @@ import (
 	"os"
 
 	"github.com/marcellof23/vfs-TA/constant"
+	"github.com/marcellof23/vfs-TA/pkg/model"
 )
 
 // Filesystem Commands
@@ -44,10 +45,22 @@ func (fs *Filesystem) Usage(comms []string) bool {
 			fmt.Println(constant.UsageCommandRm)
 			return false
 		}
+		if comms[1] == "-r" {
+			if len(comms) < 3 {
+				fmt.Println(constant.UsageCommandRm)
+				return false
+			}
+		}
 	case "cp":
 		if len(comms) < 3 {
 			fmt.Println(constant.UsageCommandCp)
 			return false
+		}
+		if comms[1] == "-r" {
+			if len(comms) < 4 {
+				fmt.Println(constant.UsageCommandCp)
+				return false
+			}
 		}
 	case "chmod":
 		if len(comms) < 3 {
@@ -58,6 +71,12 @@ func (fs *Filesystem) Usage(comms []string) bool {
 		if len(comms) < 3 {
 			fmt.Println(constant.UsageCommandUpload)
 			return false
+		}
+		if comms[1] == "-r" {
+			if len(comms) < 4 {
+				fmt.Println(constant.UsageCommandUpload)
+				return false
+			}
 		}
 	case "migrate":
 		if len(comms) < 3 {
@@ -74,27 +93,26 @@ func (fs *Filesystem) Usage(comms []string) bool {
 }
 
 // Execute runs the commands passed into it.
-func (fs *Filesystem) Execute(ctx context.Context, comms []string, publish bool) bool {
+func (fs *Filesystem) Execute(ctx context.Context, comms []string, publishing model.Publishing) (bool, error) {
 	var err error
 	if fs.Usage(comms) == false {
-		return false
+		return false, nil
 	}
 
 	role, ok := ctx.Value("role").(string)
 	if !ok {
-		fmt.Println("User is not authorized!")
-		return false
+		return false, fmt.Errorf("User is not authorized!")
 	}
 
 	switch comms[0] {
 	case "mkdir":
-		err = fs.FilesystemAccessAuth(ctx, role, false, comms[0], fs.MkDir, ctx, publish, comms[1])
+		err = fs.FilesystemAccessAuth(ctx, role, false, comms[0], fs.MkDir, ctx, publishing, comms[1])
 	case "pwd":
 		fs.Pwd()
 	case "ls":
 		fs.ListDir()
 	case "cat":
-		err = fs.FilesystemAccessAuth(ctx, role, false, comms[0], fs.Cat, ctx, publish, comms[1])
+		err = fs.FilesystemAccessAuth(ctx, role, false, comms[0], fs.Cat, ctx, publishing, comms[1])
 	case "stat":
 		stat, errs := fs.Stat(comms[1])
 		if err == nil {
@@ -103,32 +121,32 @@ func (fs *Filesystem) Execute(ctx context.Context, comms []string, publish bool)
 		err = errs
 	case "rm":
 		if comms[1] == "-r" {
-			err = fs.FilesystemAccessAuth(ctx, role, true, comms[0], fs.RemoveDir, ctx, publish, comms[2])
+			err = fs.FilesystemAccessAuth(ctx, role, true, comms[0], fs.RemoveDir, ctx, publishing, comms[2])
 		} else {
-			err = fs.FilesystemAccessAuth(ctx, role, false, comms[0], fs.RemoveFile, ctx, publish, comms[1])
+			err = fs.FilesystemAccessAuth(ctx, role, false, comms[0], fs.RemoveFile, ctx, publishing, comms[1])
 		}
 	case "cp":
 		if comms[1] == "-r" {
-			err = fs.FilesystemAccessAuth(ctx, role, true, comms[0], fs.CopyDir, ctx, publish, comms[2], comms[3])
+			err = fs.FilesystemAccessAuth(ctx, role, true, comms[0], fs.CopyDir, ctx, publishing, comms[2], comms[3])
 		} else {
-			err = fs.FilesystemAccessAuth(ctx, role, false, comms[0], fs.CopyFile, ctx, publish, comms[1], comms[2])
+			err = fs.FilesystemAccessAuth(ctx, role, false, comms[0], fs.CopyFile, ctx, publishing, comms[1], comms[2])
 		}
 	case "chmod":
-		err = fs.FilesystemAccessAuth(ctx, role, false, comms[0], fs.Chmod, ctx, publish, comms[1], comms[2])
+		err = fs.FilesystemAccessAuth(ctx, role, false, comms[0], fs.Chmod, ctx, publishing, comms[1], comms[2])
 	case "upload":
 		if comms[1] == "-r" {
-			err = fs.FilesystemAccessAuth(ctx, role, true, comms[0], fs.UploadDir, ctx, publish, comms[2], comms[3])
+			err = fs.FilesystemAccessAuth(ctx, role, true, comms[0], fs.UploadDir, ctx, publishing, comms[2], comms[3])
 		} else {
-			err = fs.FilesystemAccessAuth(ctx, role, false, comms[0], fs.UploadFile, ctx, publish, comms[1], comms[2])
+			err = fs.FilesystemAccessAuth(ctx, role, false, comms[0], fs.UploadFile, ctx, publishing, comms[1], comms[2])
 		}
 	case "migrate":
-		err = fs.FilesystemAccessAuth(ctx, role, false, comms[0], fs.Migrate, ctx, publish, comms[1], comms[2])
+		err = fs.FilesystemAccessAuth(ctx, role, false, comms[0], fs.Migrate, ctx, publishing, comms[1], comms[2])
 	case "download":
 
 		if comms[1] == "-r" {
-			err = fs.FilesystemAccessAuth(ctx, role, true, comms[0], fs.DownloadRecursive, ctx, publish, comms[2], comms[3])
+			err = fs.FilesystemAccessAuth(ctx, role, true, comms[0], fs.DownloadRecursive, ctx, publishing, comms[2], comms[3])
 		} else {
-			err = fs.FilesystemAccessAuth(ctx, role, false, comms[0], fs.DownloadFile, ctx, publish, comms[1], comms[2])
+			err = fs.FilesystemAccessAuth(ctx, role, false, comms[0], fs.DownloadFile, ctx, publishing, comms[1], comms[2])
 		}
 	case "test":
 		fs.Testing(ctx, comms[1])
@@ -136,13 +154,12 @@ func (fs *Filesystem) Execute(ctx context.Context, comms []string, publish bool)
 		fs.TearDown()
 		os.Exit(1)
 	default:
-		fmt.Println(comms[0], ": Command not found")
-		return false
+		return false, fmt.Errorf("%s: Command not found", comms[0])
 	}
 	if err != nil {
-		fmt.Println(err.Error())
+		return true, err
 	}
-	return true
+	return true, nil
 }
 
 // Shell Commands

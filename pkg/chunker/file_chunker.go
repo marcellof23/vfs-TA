@@ -3,6 +3,7 @@ package chunker
 import (
 	"bufio"
 	"context"
+	"fmt"
 	"io"
 	"math"
 	"os"
@@ -77,7 +78,10 @@ func (fc *FileChunk) ProcessChunk(chunk []byte, linesPool, stringPool *sync.Pool
 					Gid:           fc.Gid,
 				}
 
-				producer.ProduceCommand(fc.Ctx, msg)
+				err := producer.ProduceCommand(fc.Ctx, msg)
+				if err != nil {
+					fmt.Println(err)
+				}
 				//fmt.Printf("%+v\n", msg)
 				//r := producer.Retry(producer.ProduceCommand, 3e9)
 				//go r(fc.Ctx, msg)
@@ -129,6 +133,7 @@ func (fc *FileChunk) Process(f *os.File) error {
 
 		wg.Add(1)
 
+		fmt.Println("punten", partition)
 		go func(partition int) {
 			fc.ProcessChunk(buf, &linesPool, &stringPool, partition)
 			wg.Done()
@@ -138,8 +143,8 @@ func (fc *FileChunk) Process(f *os.File) error {
 		partition += pipesSize / chunkSz
 		mutex.Unlock()
 
+		wg.Wait()
 	}
 
-	wg.Wait()
 	return nil
 }

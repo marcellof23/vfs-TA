@@ -157,6 +157,8 @@ func ProduceCommand(ctx context.Context, msg Message) error {
 		kafka.Message{Value: buff},
 	)
 
+	buff = nil
+	msg = Message{}
 	log.Println(msg.Command, msg.AbsPathSource, msg.AbsPathDest, msg.Uid, msg.Gid, msg.FileMode)
 
 	if err != nil {

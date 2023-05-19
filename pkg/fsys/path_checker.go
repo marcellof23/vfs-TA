@@ -28,7 +28,7 @@ func (fs *Filesystem) CheckCPPath(pathSource, pathDest string) error {
 
 	_, err = fs.Stat(pathDest)
 	if err == nil {
-		return fmt.Errorf("cp: %s: %s", err.Error(), constant.ErrPathNotFound.Error())
+		return fmt.Errorf("cp: %s", constant.ErrPathNotFound.Error())
 	}
 
 	return nil

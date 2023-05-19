@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"os"
 	"strings"
@@ -13,6 +14,7 @@ import (
 	"github.com/marcellof23/vfs-TA/cmd/vfs/load"
 	"github.com/marcellof23/vfs-TA/global"
 	"github.com/marcellof23/vfs-TA/pkg/memory"
+	"github.com/marcellof23/vfs-TA/pkg/model"
 	"github.com/marcellof23/vfs-TA/pkg/producer"
 	"github.com/marcellof23/vfs-TA/pkg/pubsub_notify/publisher"
 	"github.com/marcellof23/vfs-TA/pkg/pubsub_notify/subscriber"
@@ -54,7 +56,14 @@ func shellLoop(ctx context.Context, currentUser *user.User) {
 				continue
 			}
 
-			global.Filesys.Execute(ctx, commands, true)
+			publishing := model.Publishing{
+				PublishSync:         true,
+				PublishIntermediate: true,
+			}
+			_, err := global.Filesys.Execute(ctx, commands, publishing)
+			if err != nil {
+				fmt.Println(err.Error())
+			}
 		}
 
 		currentUser.SetPrompt(prompt, global.Filesys)

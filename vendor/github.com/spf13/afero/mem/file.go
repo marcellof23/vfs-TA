@@ -122,10 +122,10 @@ func SetGID(f *FileData, gid int) {
 	f.Unlock()
 }
 
-func SetLoaded(f *FileData, isLoaded bool) {
-	f.Lock()
-	f.loaded = isLoaded
-	f.Unlock()
+func (d *FileData) SetLoaded(isLoaded bool) {
+	d.Lock()
+	d.loaded = isLoaded
+	d.Unlock()
 }
 
 func GetFileInfo(f *FileData) *FileInfo {
@@ -362,6 +362,12 @@ func (s *FileInfo) Size() int64 {
 	s.Lock()
 	defer s.Unlock()
 	return int64(len(s.data))
+}
+
+func (d *FileData) IsLoaded() bool {
+	d.Lock()
+	defer d.Unlock()
+	return d.loaded
 }
 
 func (s *FileInfo) IsLoaded() bool {

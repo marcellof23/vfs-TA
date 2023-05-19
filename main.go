@@ -3,6 +3,9 @@ package main
 import (
 	"container/list"
 	"fmt"
+	"os"
+
+	"github.com/marcellof23/vfs-TA/lib/afero"
 )
 
 var (
@@ -60,9 +63,27 @@ func (l *LRUCache) Get(key string) int64 {
 }
 
 func main() {
-	obj := Constructor()
-	obj.Put("filename1", 50)
-	obj.Put("filename2", 55)
-	obj.Put("filename3", 55)
-	fmt.Println(obj.Get("filename1"))
+	//obj := Constructor()
+	//obj.Put("filename1", 50)
+	//obj.Put("filename2", 55)
+	//obj.Put("filename3", 55)
+	//fmt.Println(obj.Get("filename1"))
+
+	fs := &afero.MemMapFs{}
+	fs.Create("test")
+	afero.WriteFile(fs, "test", []byte("hellosss"), 0o775)
+
+	info, _ := fs.Stat("test")
+	fmt.Println(info.Size())
+
+	f, _ := fs.OpenFile("test", os.O_RDWR|os.O_TRUNC, 0o775)
+	b := make([]byte, 10000)
+	f.Read(b)
+	fmt.Println(string(b))
+
+	f.Write([]byte{})
+	f.Close()
+
+	info, _ = fs.Stat("test")
+	fmt.Println(info.Size())
 }

@@ -8,7 +8,7 @@ import (
 
 var (
 	LruCache        *LRUCache
-	MemoryThreshold = int64(3000 * 1024 * 1024)
+	MemoryThreshold = int64(30 * 1024)
 )
 
 type Node struct {
@@ -29,10 +29,11 @@ func Constructor() *LRUCache {
 
 func (l *LRUCache) Put(key string, value int64, content []byte, fs *Filesystem) {
 	removedStat, _ := fs.MFS.Stat(key)
-	removedFile, _ := fs.MFS.OpenFile(key, os.O_RDWR|os.O_CREATE, removedStat.Mode())
+	removedFile, _ := fs.MFS.OpenFile(key, os.O_RDWR|os.O_TRUNC, removedStat.Mode())
 	defer removedFile.Close()
 
 	if item, ok := l.Items[key]; !ok {
+		FileSizeMap[key] = value
 		if l.TotalSize >= MemoryThreshold {
 			back := l.Queue.Back()
 			l.Queue.Remove(back)
@@ -40,9 +41,10 @@ func (l *LRUCache) Put(key string, value int64, content []byte, fs *Filesystem) 
 
 			filename := back.Value.(string)
 			destStat, _ := fs.MFS.Stat(filename)
-			destFile, _ := fs.MFS.OpenFile(filename, os.O_RDWR|os.O_CREATE, destStat.Mode())
+			destFile, _ := fs.MFS.OpenFile(filename, os.O_RDWR|os.O_TRUNC, destStat.Mode())
 			defer destFile.Close()
-			l.TotalSize -= destStat.Size()
+
+			l.TotalSize -= FileSizeMap[filename]
 			destFile.Truncate(0)
 			destFile.Write([]byte{})
 		}

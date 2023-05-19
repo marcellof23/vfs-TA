@@ -36,7 +36,7 @@ func New(maxFileSize int64) *Filesystem {
 
 // testFilessytemCreation initializes the Filesystem by replicating
 // the current root directory and all it's child direcctories.
-func copyFilesystem(ctx context.Context, publish bool, dirName, replicatePath, targetPath string, fs *Filesystem) *Filesystem {
+func copyFilesystem(ctx context.Context, publishing model.Publishing, dirName, replicatePath, targetPath string, fs *Filesystem) *Filesystem {
 	var fileName gofs.DirEntry
 	var fi os.FileInfo
 
@@ -56,10 +56,10 @@ func copyFilesystem(ctx context.Context, publish bool, dirName, replicatePath, t
 		mode := fi.Mode()
 		if mode.IsDir() {
 			dirname := fileName.Name()
-			fs.MkDir(ctx, publish, dirname)
+			fs.MkDir(ctx, publishing, dirname)
 			fs.MFS.Chmod(dirname, mode.Perm())
 			fs.MFS.Chown(filepath.ToSlash(filepath.Clean(filepath.Join(fs.rootPath, dirname))), userState.UserID, userState.GroupID)
-			copyFilesystem(ctx, publish, dirName+"/"+fileName.Name(), replicatePath+"/"+fileName.Name(), targetPath, fs.directories[fileName.Name()])
+			copyFilesystem(ctx, publishing, dirName+"/"+fileName.Name(), replicatePath+"/"+fileName.Name(), targetPath, fs.directories[fileName.Name()])
 		} else {
 			fs.files[fileName.Name()] = &file{
 				name:     fileName.Name(),
@@ -68,7 +68,6 @@ func copyFilesystem(ctx context.Context, publish bool, dirName, replicatePath, t
 			fname := fs.files[fileName.Name()].rootPath
 			memfile, _ := fs.MFS.Create(filepath.ToSlash(filepath.Join(targetPath, fname)))
 			memfile.Truncate(fi.Size())
-			memfile.Write(dat)
 			fs.MFS.Chmod(memfile.Name(), mode.Perm())
 			fs.MFS.Chown(filepath.ToSlash(filepath.Clean(fname)), userState.UserID, userState.GroupID)
 			LruCache.Put(filepath.ToSlash(filepath.Join(targetPath, fname)), fi.Size(), dat, fs)
@@ -78,7 +77,7 @@ func copyFilesystem(ctx context.Context, publish bool, dirName, replicatePath, t
 				fmt.Println(err)
 			}
 
-			if publish {
+			if publishing.PublishSync {
 				pubs, err := GetPublisherFromContext(ctx)
 				if err != nil {
 					fmt.Println(err)
@@ -103,36 +102,38 @@ func copyFilesystem(ctx context.Context, publish bool, dirName, replicatePath, t
 				pubs.Publish(ctx, msgSync)
 			}
 
-			msg := producer.Message{
-				Command:       "upload",
-				Token:         token,
-				AbsPathSource: fname,
-				AbsPathDest:   targetPath,
-				Buffer:        []byte{},
-				FileMode:      uint64(mode),
-				Uid:           userState.UserID,
-				Gid:           userState.GroupID,
-			}
-
-			if fi.Size() <= int64(LargeFileConstraint) {
-				msg.Buffer = dat
-				r := producer.Retry(producer.ProduceCommand, 3e9)
-				go r(ctx, msg)
-			} else {
-				producer.ProduceCommand(ctx, msg)
-
-				fileChunker := chunker.FileChunk{
-					Ctx:           ctx,
-					Command:       "write",
+			if publishing.PublishIntermediate {
+				msg := producer.Message{
+					Command:       "upload",
 					Token:         token,
 					AbsPathSource: fname,
 					AbsPathDest:   targetPath,
+					Buffer:        []byte{},
+					FileMode:      uint64(mode),
 					Uid:           userState.UserID,
 					Gid:           userState.GroupID,
 				}
 
-				_ = fileChunker.Process(fl)
+				if fi.Size() <= int64(LargeFileConstraint) {
+					memfile.Write(dat)
+					msg.Buffer = dat
+					r := producer.Retry(producer.ProduceCommand, 3e9)
+					go r(ctx, msg)
+				} else {
+					producer.ProduceCommand(ctx, msg)
 
+					fileChunker := chunker.FileChunk{
+						Ctx:           ctx,
+						Command:       "write",
+						Token:         token,
+						AbsPathSource: fname,
+						AbsPathDest:   targetPath,
+						Uid:           userState.UserID,
+						Gid:           userState.GroupID,
+					}
+
+					_ = fileChunker.Process(fl)
+				}
 			}
 		}
 

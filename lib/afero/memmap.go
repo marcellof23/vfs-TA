@@ -434,6 +434,28 @@ func (m *MemMapFs) Uid(name string) int {
 	return f.GetUID()
 }
 
+func (m *MemMapFs) IsLoaded(name string) bool {
+	name = normalizePath(name)
+
+	m.mu.RLock()
+	f, ok := m.getData()[name]
+	m.mu.RUnlock()
+	if !ok {
+		return false
+	}
+
+	return f.IsLoaded()
+}
+
+func (m *MemMapFs) SetLoaded(name string, isLoad bool) {
+	name = normalizePath(name)
+
+	m.mu.RLock()
+	f, _ := m.getData()[name]
+	f.SetLoaded(isLoad)
+	m.mu.RUnlock()
+}
+
 func (m *MemMapFs) Gid(name string) int {
 	name = normalizePath(name)
 

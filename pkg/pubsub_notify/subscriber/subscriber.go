@@ -16,6 +16,7 @@ import (
 	"github.com/marcellof23/vfs-TA/constant"
 	"github.com/marcellof23/vfs-TA/global"
 	"github.com/marcellof23/vfs-TA/pkg/fsys"
+	"github.com/marcellof23/vfs-TA/pkg/model"
 	"github.com/marcellof23/vfs-TA/pkg/pubsub_notify"
 )
 
@@ -68,16 +69,20 @@ func (s *Subscriber) ListenMessage(ctx context.Context) error {
 			log.Println("failed to unmarshal:", err)
 		}
 
+		publishing := model.Publishing{
+			PublishSync:         false,
+			PublishIntermediate: false,
+		}
+
 		clientID, _ := fsys.GetClientIDFromContext(ctx)
 		// Message is just for other clients
 		if msgCmd.ClientID != clientID {
 			comms := strings.Split(msgCmd.FullCommand, " ")
-			fmt.Println(comms)
 			if _, ok := constant.CommandPubsub[comms[0]]; ok {
 				if comms[0] == "upload-sync" {
 					global.Filesys.UploadSyncFile(ctx, msgCmd)
 				} else {
-					global.Filesys.Execute(ctx, comms, false)
+					global.Filesys.Execute(ctx, comms, publishing)
 				}
 			}
 		}

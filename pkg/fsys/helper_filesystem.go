@@ -120,8 +120,15 @@ func (fs *Filesystem) PrintStat(info *FileInfo, filename string) {
 			tipe = "File"
 		}
 
+		sz := info.Size()
+		fname := filepath.Join(fs.rootPath, info.Name())
+		if sz == 0 {
+			sz = FileSizeMap[fname]
+			fmt.Println("puntens")
+		}
+
 		fmt.Println("File: ", info.Name())
-		fmt.Println("Size: ", info.Size())
+		fmt.Println("Size: ", sz)
 		fmt.Println("Access: ", info.Mode())
 		fmt.Println("Modify: ", info.ModTime())
 		fmt.Println("Type: ", tipe)

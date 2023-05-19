@@ -127,9 +127,9 @@ func Process(f *os.File) error {
 		partition += linesSize / chunkSz
 		mutex.Unlock()
 
+		wg.Wait()
 	}
 
-	wg.Wait()
 	return nil
 }
 
