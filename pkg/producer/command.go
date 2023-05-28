@@ -15,7 +15,7 @@ import (
 )
 
 const (
-	brokerAddress = "localhost:9092"
+	brokerAddress = "159.223.38.201:9092"
 	topic         = "command-log"
 )
 
@@ -32,6 +32,7 @@ type Message struct {
 	Order         int
 	Uid           int
 	Gid           int
+	Checksum      [32]byte
 	Buffer        []byte
 }
 
@@ -157,8 +158,6 @@ func ProduceCommand(ctx context.Context, msg Message) error {
 		kafka.Message{Value: buff},
 	)
 
-	buff = nil
-	msg = Message{}
 	log.Println(msg.Command, msg.AbsPathSource, msg.AbsPathDest, msg.Uid, msg.Gid, msg.FileMode)
 
 	if err != nil {

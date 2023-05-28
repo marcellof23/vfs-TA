@@ -28,6 +28,7 @@ func New(maxFileSize int64) *Filesystem {
 	// root = makeFilesystem(".", ".", nil)
 
 	statBackup, _ := os.Stat("backup")
+	//time.Sleep(30 * time.Second)
 	root.MFS.Chmod("/", statBackup.Mode())
 	root.MFS.Chown("/", 1055, 1055)
 	fsys := root
