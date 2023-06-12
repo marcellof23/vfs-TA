@@ -13,7 +13,6 @@ import (
 	"github.com/marcellof23/vfs-TA/boot"
 	"github.com/marcellof23/vfs-TA/cmd/vfs/load"
 	"github.com/marcellof23/vfs-TA/global"
-	"github.com/marcellof23/vfs-TA/pkg/memory"
 	"github.com/marcellof23/vfs-TA/pkg/model"
 	"github.com/marcellof23/vfs-TA/pkg/producer"
 	"github.com/marcellof23/vfs-TA/pkg/pubsub_notify/publisher"
@@ -45,7 +44,7 @@ func shellLoop(ctx context.Context, currentUser *user.User) {
 		shellFlag = shells.Execute(ctx, commands)
 		currentUser.SetPrompt(prompt, shells.Fs)
 
-		memory.PrintMemUsage()
+		//memory.PrintMemUsage()
 		if commands[0] == "reload" {
 			load.ReloadFilesys(ctx)
 			global.Filesys = fsys.New(maxFileSize)
@@ -104,14 +103,16 @@ func init() {
 				logger.Println("ERROR: ", err)
 				return
 			}
+
+			currentUser := user.InitUser(dep)
+
 			subs, err := subscriber.InitDefault(ctx, dep)
 			if err != nil {
 				logger.Println("ERROR: ", err)
 				return
 			}
 
-			currentUser := user.InitUser(dep)
-			clientID := currentUser.ClientID
+			clientID := subs.Subs.ID()
 			ctx = context.WithValue(ctx, "role", currentUser.Role)
 			ctx = context.WithValue(ctx, "token", currentUser.Token)
 			ctx = context.WithValue(ctx, "host", dep.Config().Server.Addr)

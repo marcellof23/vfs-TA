@@ -1,25 +1,36 @@
 package main
 
 import (
-	"fmt"
-	"os"
+	"context"
+	"log"
+	"time"
+
+	"cloud.google.com/go/pubsub"
+	"github.com/google/uuid"
+	"google.golang.org/api/option"
+
+	"github.com/marcellof23/vfs-TA/pkg/pubsub_notify"
 )
 
 func main() {
-	// Open the file to split
-	d1 := []byte("hello\ngo\n")
-	d2 := []byte("hello\ngo2\n")
-	err := os.WriteFile("output-folder/test", d1, 0644)
+	client, err := pubsub.NewClient(context.Background(), "phonic-weaver-375914", option.WithCredentialsFile("credentials.json"))
 	if err != nil {
-		fmt.Println(err)
+		log.Fatalf("Could not create pubsub Client: %v", err)
 	}
 
-	file, _ := os.OpenFile("output-folder/test", os.O_RDWR, 0644)
-	d1len := len(d1)
+	i := 0
 
-	_, err = file.WriteAt(d2, int64(d1len)-2)
-	if err != nil {
-		fmt.Println(err)
+	t := pubsub_notify.GetTopic(context.Background(), client, "command-topic")
+
+	for i = 0; i < 20; i++ {
+		_, err := client.CreateSubscription(context.Background(), "command-"+uuid.New().String(), pubsub.SubscriptionConfig{
+			ExpirationPolicy: 72 * time.Hour,
+			Topic:            t,
+			AckDeadline:      20 * time.Second,
+		})
+		if err != nil {
+			log.Fatalf("Could not create pubsub Client: %v", err)
+		}
 	}
 
 }

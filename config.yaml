@@ -10,6 +10,11 @@ maxFileSize: 50 # (in MiB)
 backupPathLocal: '/home/integeroverflow/TugasAkhir/repo/vfs-TA/output/backup'
 backupPathIntermediateService: '/home/integeroverflow/TugasAkhir/repo/intermediate-service-TA/backup'
 
+producer:
+  brokerAddress: 'localhost:9092'
+  topic: 'command-log'
+  partition: 0
+
 pubsub:
   topic: 'command-topic'
   projectID: 'phonic-weaver-375914'

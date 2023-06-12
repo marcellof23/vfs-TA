@@ -14,8 +14,8 @@ import (
 var (
 	cnt       = 0
 	partsDir  = "output-folder"
-	linesSize = 200 * 1024 * 1024
-	chunkSz   = 50 * 1024 * 1024
+	linesSize = 10000
+	chunkSz   = 2500
 )
 
 func chunkBytes(data []byte, chunkSize int) [][]byte {
@@ -135,7 +135,7 @@ func Process(f *os.File) error {
 
 func main() {
 	//filename := "pkg/fsys/filesystem.go"
-	filename := "demo-folder3/1GB.bin"
+	filename := "pkg/fsys/filesystem.go"
 
 	file, err := os.Open(filename)
 	if err != nil {

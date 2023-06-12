@@ -25,7 +25,7 @@ type UserResp struct {
 		Username string `json:"Username"`
 		UserID   int    `json:"ID"`
 		GroupID  int    `json:"GroupID"`
-		ClientID string `json:"ClientID"`
+		ClientID string `json:"SubscriberID"`
 		Role     string `json:"Role"`
 	} `json:"data"`
 	Token string `json:"token"`

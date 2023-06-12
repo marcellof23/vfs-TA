@@ -124,7 +124,6 @@ func (fs *Filesystem) PrintStat(info *FileInfo, filename string) {
 		fname := filepath.Join(fs.rootPath, info.Name())
 		if sz == 0 {
 			sz = FileSizeMap[fname]
-			fmt.Println("puntens")
 		}
 
 		fmt.Println("File: ", info.Name())

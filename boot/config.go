@@ -20,6 +20,11 @@ type Config struct {
 		Project        string `yaml:"projectID"`
 		CredentialFile string `yaml:"credentialsFile"`
 	} `yaml:"pubsub"`
+	Producer struct {
+		BrokerAddress string `yaml:"brokerAddress"`
+		Topic         string `yaml:"topic"`
+		Partition     int    `yaml:"partition"`
+	} `yaml:"producer"`
 }
 
 func LoadConfig(file string) (Config, error) {

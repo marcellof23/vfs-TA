@@ -3,6 +3,7 @@ package producer
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -12,11 +13,6 @@ import (
 
 	"github.com/marcellof23/vfs-TA/boot"
 	"github.com/marcellof23/vfs-TA/constant"
-)
-
-const (
-	brokerAddress = "localhost:9092"
-	topic         = "command-log"
 )
 
 var (
@@ -32,6 +28,8 @@ type Message struct {
 	Order         int
 	Uid           int
 	Gid           int
+	Size          int64
+	RequestID     string
 	Buffer        []byte
 }
 
@@ -46,14 +44,19 @@ func Retry(effector Effector, delay time.Duration) Effector {
 
 		for r := 0; ; r++ {
 			err := effector(ctx, msg)
-			if err == nil || r >= 20 {
-				return err
+			if err == nil || r >= 60 {
+				if r >= 60 {
+					log.Printf("Retrying function already done 60 times, error still persist err: %s", err.Error())
+				}
+				return nil
 			}
 
-			log.Printf("ERROR: Function call failed, retrying in %v\n", delay)
-
+			//fmt.Printf("Retrying function %s in %d second\n", msg.Command, delay/1e9)
 			select {
 			case <-time.After(delay):
+				if r >= 30 {
+					delay = delay * time.Duration(1.1*float64(time.Second))
+				}
 			case <-ctx.Done():
 				return ctx.Err()
 			}
@@ -92,9 +95,15 @@ func KafkaHealthCheck(ctx context.Context) error {
 		Timeout:  10 * time.Second,
 		ClientID: "health-check-client",
 	}
+
+	dep, ok := ctx.Value("dependency").(*boot.Dependencies)
+	if !ok {
+		return errors.New("failed to get dependency from context")
+	}
+
 	readerConfig := kafka.ReaderConfig{
-		Brokers:  []string{brokerAddress},
-		Topic:    topic,
+		Brokers:  []string{dep.Config().Producer.BrokerAddress},
+		Topic:    dep.Config().Producer.Topic,
 		Dialer:   dialer,
 		MinBytes: 1,
 		MaxBytes: 10e6,
@@ -139,10 +148,15 @@ func ProduceCommand(ctx context.Context, msg Message) error {
 		return fmt.Errorf("ERROR: logger not initiated")
 	}
 
+	dep, ok := ctx.Value("dependency").(*boot.Dependencies)
+	if !ok {
+		return errors.New("failed to get dependency from context")
+	}
+
 	writer := kafka.Writer{
-		Addr:       kafka.TCP(brokerAddress),
+		Addr:       kafka.TCP(dep.Config().Producer.BrokerAddress),
 		BatchBytes: 1e9,
-		Topic:      topic,
+		Topic:      dep.Config().Producer.Topic,
 	}
 
 	var buff []byte
@@ -157,8 +171,6 @@ func ProduceCommand(ctx context.Context, msg Message) error {
 		kafka.Message{Value: buff},
 	)
 
-	buff = nil
-	msg = Message{}
 	log.Println(msg.Command, msg.AbsPathSource, msg.AbsPathDest, msg.Uid, msg.Gid, msg.FileMode)
 
 	if err != nil {

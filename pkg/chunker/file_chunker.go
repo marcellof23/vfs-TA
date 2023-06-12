@@ -38,7 +38,7 @@ func (fc *FileChunk) chunkBytes(data []byte, chunkSize int) [][]byte {
 	}
 	return chunks
 }
-func (fc *FileChunk) ProcessChunk(chunk []byte, linesPool, stringPool *sync.Pool, partition int) {
+func (fc *FileChunk) ProcessChunk(chunk []byte, linesPool, stringPool *sync.Pool, partition int, reqID string) int {
 
 	var wg sync.WaitGroup
 
@@ -59,6 +59,8 @@ func (fc *FileChunk) ProcessChunk(chunk []byte, linesPool, stringPool *sync.Pool
 		noOfThread++
 	}
 
+	cnt := 0
+
 	for i := 0; i < (noOfThread); i++ {
 		wg.Add(1)
 
@@ -66,6 +68,7 @@ func (fc *FileChunk) ProcessChunk(chunk []byte, linesPool, stringPool *sync.Pool
 			defer wg.Done() //to avoid deadlocks
 			for j := s; j < e; j++ {
 				data := datasSlice[j]
+				cnt += 1
 
 				msg := producer.Message{
 					Command:       "write",
@@ -74,6 +77,7 @@ func (fc *FileChunk) ProcessChunk(chunk []byte, linesPool, stringPool *sync.Pool
 					AbsPathDest:   fc.AbsPathDest,
 					Buffer:        data,
 					Order:         partition + j,
+					RequestID:     reqID,
 					Uid:           fc.Uid,
 					Gid:           fc.Gid,
 				}
@@ -82,6 +86,7 @@ func (fc *FileChunk) ProcessChunk(chunk []byte, linesPool, stringPool *sync.Pool
 				if err != nil {
 					fmt.Println(err)
 				}
+
 				//fmt.Printf("%+v\n", msg)
 				//r := producer.Retry(producer.ProduceCommand, 3e9)
 				//go r(fc.Ctx, msg)
@@ -95,9 +100,11 @@ func (fc *FileChunk) ProcessChunk(chunk []byte, linesPool, stringPool *sync.Pool
 
 	wg.Wait()
 	datasSlice = nil
+
+	return cnt
 }
 
-func (fc *FileChunk) Process(f *os.File) error {
+func (fc *FileChunk) Process(f *os.File, reqID string) (int, error) {
 
 	linesPool := sync.Pool{New: func() interface{} {
 		lines := make([]byte, pipesSize)
@@ -115,6 +122,7 @@ func (fc *FileChunk) Process(f *os.File) error {
 	var mutex sync.Mutex
 
 	partition := 0
+	total := 0
 	for {
 		buf := linesPool.Get().([]byte)
 
@@ -128,14 +136,14 @@ func (fc *FileChunk) Process(f *os.File) error {
 			if err == io.EOF {
 				break
 			}
-			return err
+			return 0, err
 		}
 
 		wg.Add(1)
 
-		fmt.Println("punten", partition)
 		go func(partition int) {
-			fc.ProcessChunk(buf, &linesPool, &stringPool, partition)
+			totalLocal := fc.ProcessChunk(buf, &linesPool, &stringPool, partition, reqID)
+			total = total + totalLocal
 			wg.Done()
 		}(partition)
 
@@ -146,5 +154,5 @@ func (fc *FileChunk) Process(f *os.File) error {
 		wg.Wait()
 	}
 
-	return nil
+	return total, nil
 }

@@ -8,7 +8,7 @@ import (
 
 var (
 	LruCache        *LRUCache
-	MemoryThreshold = int64(30 * 1024)
+	MemoryThreshold = int64(3000 * 1024 * 1024)
 )
 
 type Node struct {
@@ -35,6 +35,7 @@ func (l *LRUCache) Put(key string, value int64, content []byte, fs *Filesystem) 
 	if item, ok := l.Items[key]; !ok {
 		FileSizeMap[key] = value
 		if l.TotalSize >= MemoryThreshold {
+
 			back := l.Queue.Back()
 			l.Queue.Remove(back)
 			delete(l.Items, back.Value.(string))

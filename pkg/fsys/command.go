@@ -133,6 +133,8 @@ func (fs *Filesystem) Execute(ctx context.Context, comms []string, publishing mo
 		}
 	case "chmod":
 		err = fs.FilesystemAccessAuth(ctx, role, false, comms[0], fs.Chmod, ctx, publishing, comms[1], comms[2])
+	case "chown":
+		err = fs.FilesystemAccessAuth(ctx, role, false, comms[0], fs.Chown, ctx, publishing, comms[1], comms[2])
 	case "upload":
 		if comms[1] == "-r" {
 			err = fs.FilesystemAccessAuth(ctx, role, true, comms[0], fs.UploadDir, ctx, publishing, comms[2], comms[3])

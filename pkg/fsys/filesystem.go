@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/briandowns/spinner"
+	"github.com/google/uuid"
 
 	"github.com/marcellof23/vfs-TA/lib/afero"
 	"github.com/marcellof23/vfs-TA/pkg/model"
@@ -83,7 +84,7 @@ func (fs *Filesystem) Stat(filename string) (*FileInfo, error) {
 	path := filepath.ToSlash(filepath.Join(fs.rootPath, filename))
 	info, err := fs.MFS.Stat(path)
 	if err != nil {
-		return nil, fmt.Errorf("cannot stat %s: ", filename)
+		return nil, fmt.Errorf("cannot stat %s", filename)
 	}
 
 	fileInfo := &FileInfo{
@@ -125,9 +126,6 @@ func (fs *Filesystem) UploadFile(ctx context.Context, publishing model.Publishin
 	s := spinner.New(spinner.CharSets[14], 150*time.Millisecond) // Build our new spinner
 	s.Start()
 	s.Suffix = fmt.Sprintf(" Uploading in progress...") // Start the spinner
-	defer func() {
-		s.Stop()
-	}()
 
 	destFS, _ := fs.searchFS2(destPath)
 	userState, err := GetUserStateFromContext(ctx)
@@ -180,6 +178,8 @@ func (fs *Filesystem) UploadFile(ctx context.Context, publishing model.Publishin
 			ClientID:    clientID,
 		}
 
+		defer s.Stop()
+
 		err = pubs.Publish(ctx, msgSync)
 		if err != nil {
 			return err
@@ -194,6 +194,7 @@ func (fs *Filesystem) UploadFile(ctx context.Context, publishing model.Publishin
 			AbsPathDest:   destFS.rootPath,
 			FileMode:      uint64(fl.Mode()),
 			Buffer:        []byte{},
+			Size:          int64(len(dat)),
 			Uid:           userState.UserID,
 			Gid:           userState.GroupID,
 		}
@@ -204,7 +205,7 @@ func (fs *Filesystem) UploadFile(ctx context.Context, publishing model.Publishin
 
 			msg.Buffer = dat
 
-			r := producer.Retry(producer.ProduceCommand, 3e9)
+			r := producer.Retry(producer.ProduceCommand, 1e9)
 			go r(ctx, msg)
 		} else {
 			producer.ProduceCommand(ctx, msg)
@@ -219,14 +220,23 @@ func (fs *Filesystem) UploadFile(ctx context.Context, publishing model.Publishin
 				Gid:           userState.GroupID,
 			}
 
-			err := fileChunker.Process(sourceFile)
+			reqID := uuid.New().String()
+			tot, err := fileChunker.Process(sourceFile, reqID)
 			if err != nil {
 				return err
 			}
+
+			fmt.Println(tot)
+			s.Stop()
 		}
 	}
 
 	return nil
+}
+
+type SyncResp struct {
+	Success bool   `json:"success"`
+	Error   string `json:"error"`
 }
 
 // UploadDir uploads a file to the virtual Filesystem.
@@ -253,7 +263,48 @@ func (fs *Filesystem) UploadDir(ctx context.Context, publishing model.Publishing
 	fsDest.MFS.Chown(destPathBase, userState.UserID, userState.GroupID)
 	fsDest = fsDest.directories[destPathBase]
 
-	copyFilesystem(ctx, publishing, ".", sourcePath, fs.absPath(destPath), fsDest)
+	token, err := GetTokenFromContext(ctx)
+	if err != nil {
+		return err
+	}
+
+	host, err := GetHostFromContext(ctx)
+	if err != nil {
+		return err
+	}
+
+	_, cancel := context.WithDeadline(ctx, time.Now().Add(time.Second*2))
+	defer cancel()
+
+	reqID := uuid.New().String()
+	tot, _ := copyFilesystem(ctx, publishing, ".", sourcePath, fs.absPath(destPath), reqID, fsDest)
+
+	syncURL := constant.Protocol + host + constant.ApiVer + "/sync"
+	client := http.Client{}
+	var param = url.Values{}
+	param.Set("RequestID", reqID)
+	param.Set("TotalCommand", strconv.Itoa(tot))
+
+	var payload = bytes.NewBufferString(param.Encode())
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, syncURL, payload)
+	if err != nil {
+		return err
+	}
+
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Set("token", token)
+	resp, err := client.Do(req)
+	if err != nil || resp.StatusCode != 200 {
+		return err
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	post := SyncResp{}
+	err = json.Unmarshal(body, &post)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -336,19 +387,20 @@ func (fs *Filesystem) MkDir(ctx context.Context, publishing model.Publishing, di
 				return fmt.Errorf("mkdir : directory %s already exists", segment)
 			}
 		} else if !dirExist {
-			err := fs.MFS.MkdirAll(filepath.ToSlash(filepath.Join(currFs.rootPath, segment)), 0o700)
+			pathName := filepath.ToSlash(filepath.Join(currFs.rootPath, segment))
+			err := fs.MFS.MkdirAll(pathName, 0o700)
 			if err != nil {
 				return err
 			}
 
-			err = fs.MFS.Chown(filepath.ToSlash(filepath.Join(currFs.rootPath, segment)), userState.UserID, userState.GroupID)
+			err = fs.MFS.Chown(pathName, userState.UserID, userState.GroupID)
 			if err != nil {
 				return err
 			}
 
 			newDir := &fileDir{
 				name:        segment,
-				rootPath:    filepath.ToSlash(filepath.Join(currFs.rootPath, segment)),
+				rootPath:    pathName,
 				files:       make(map[string]*file),
 				directories: make(map[string]*Filesystem),
 				prev:        currFs,
@@ -389,7 +441,7 @@ func (fs *Filesystem) MkDir(ctx context.Context, publishing model.Publishing, di
 					Gid:           userState.GroupID,
 				}
 
-				r := producer.Retry(producer.ProduceCommand, 3e9)
+				r := producer.Retry(producer.ProduceCommand, 1e9)
 				go r(ctx, msg)
 			}
 		}
@@ -400,10 +452,11 @@ func (fs *Filesystem) MkDir(ctx context.Context, publishing model.Publishing, di
 
 // RemoveFile removes a File from the virtual Filesystem.
 func (fs *Filesystem) RemoveFile(ctx context.Context, publishing model.Publishing, filename string) error {
-	absFilename := fs.absPath(filename)
+	newfs := fs.handleRootNav(filename)
+	absFilename := newfs.absPath(filename)
 
-	info, err := fs.Stat(filename)
-	_, err2 := fs.MFS.Stat(absFilename)
+	info, err := newfs.Stat(filename)
+	_, err2 := newfs.MFS.Stat(absFilename)
 	if err != nil && err2 != nil {
 		return fmt.Errorf("rm : cannot remove '%s': no such file or directory", filename)
 	}
@@ -412,13 +465,13 @@ func (fs *Filesystem) RemoveFile(ctx context.Context, publishing model.Publishin
 		return fmt.Errorf("rm : cannot remove '%s': Is a directory", filename)
 	}
 
-	err = fs.MFS.Remove(absFilename)
+	err = newfs.MFS.Remove(absFilename)
 	if err != nil {
 		return err
 	}
 
 	baseFilename := filepath.Base(filename)
-	fsTarget, err := fs.searchFS2(absFilename)
+	fsTarget, err := newfs.searchFS2(absFilename)
 	if err != nil {
 		errs := fmt.Sprintf("rm : cannot remove '%s': path not found", filename)
 		return errors.New(errs)
@@ -465,7 +518,7 @@ func (fs *Filesystem) RemoveFile(ctx context.Context, publishing model.Publishin
 			Buffer:        []byte{},
 		}
 
-		r := producer.Retry(producer.ProduceCommand, 3e9)
+		r := producer.Retry(producer.ProduceCommand, 1e9)
 		go r(ctx, msg)
 	}
 
@@ -474,9 +527,10 @@ func (fs *Filesystem) RemoveFile(ctx context.Context, publishing model.Publishin
 
 // RemoveDir removes a directory from the virtual Filesystem.
 func (fs *Filesystem) RemoveDir(ctx context.Context, publishing model.Publishing, dirname string) error {
-	fsTarget, _ := fs.searchFS(dirname)
-	dirname = fs.absPath(dirname)
-	_, err := fs.Stat(dirname)
+	newfs := fs.handleRootNav(dirname)
+	fsTarget, _ := newfs.searchFS(dirname)
+	dirname = newfs.absPath(dirname)
+	_, err := newfs.Stat(dirname)
 	if err != nil {
 		return fmt.Errorf("rm : cannot remove '%s': file or Directory does not exist", dirname)
 	}
@@ -484,7 +538,7 @@ func (fs *Filesystem) RemoveDir(ctx context.Context, publishing model.Publishing
 	walkFn := func(rootpath, path string, fss *Filesystem, err error) error {
 		publishing2 := publishing
 		publishing2.PublishSync = false
-		fs.RemoveFile(ctx, publishing2, filepath.ToSlash(filepath.Join(rootpath, path)))
+		newfs.RemoveFile(ctx, publishing2, filepath.ToSlash(filepath.Join(rootpath, path)))
 		return nil
 	}
 
@@ -497,7 +551,7 @@ func (fs *Filesystem) RemoveDir(ctx context.Context, publishing model.Publishing
 		delete(fsTarget.prev.directories, baseDirName)
 	}
 
-	err = fs.MFS.RemoveAll(dirname)
+	err = newfs.MFS.RemoveAll(dirname)
 	if err != nil {
 		return err
 	}
@@ -541,7 +595,7 @@ func (fs *Filesystem) RemoveDir(ctx context.Context, publishing model.Publishing
 			Buffer:        []byte{},
 		}
 
-		r := producer.Retry(producer.ProduceCommand, 3e9)
+		r := producer.Retry(producer.ProduceCommand, 1e9)
 		go r(ctx, msg)
 	}
 
@@ -564,12 +618,15 @@ func (fs *Filesystem) CopyFile(ctx context.Context, publishing model.Publishing,
 
 	fs.Touch(ctx, pathDest)
 	sourceFile, _ := fs.MFS.Open(pathSourceFileName)
+	scFile, _ := fs.MFS.Stat(pathSourceFileName)
 	destFile, _ := fs.MFS.OpenFile(pathTargetFileName, os.O_RDWR|os.O_CREATE, 0o600)
 
 	destFile.Truncate(flSource.Size())
 	b := make([]byte, flSource.Size())
 	sourceFile.Read(b)
 	destFile.Write(b)
+	fs.MFS.Chmod(filepath.Clean(pathDest), scFile.Mode())
+	fs.MFS.Chown(filepath.Clean(pathDest), fs.MFS.Uid(pathSourceFileName), fs.MFS.Gid(pathSourceFileName))
 
 	token, err := GetTokenFromContext(ctx)
 	if err != nil {
@@ -616,7 +673,7 @@ func (fs *Filesystem) CopyFile(ctx context.Context, publishing model.Publishing,
 			Gid:           userState.UserID,
 		}
 
-		r := producer.Retry(producer.ProduceCommand, 3e9)
+		r := producer.Retry(producer.ProduceCommand, 1e9)
 		go r(ctx, msg)
 	}
 
@@ -738,7 +795,7 @@ func (fs *Filesystem) ListDir() {
 	}
 }
 
-func (fs *Filesystem) Chmod(ctx context.Context, publish bool, perm, name string) error {
+func (fs *Filesystem) Chmod(ctx context.Context, publishing model.Publishing, perm, name string) error {
 	absName := fs.absPath(name)
 	_, err := fs.verifyPath(name)
 	if err != nil {
@@ -759,7 +816,7 @@ func (fs *Filesystem) Chmod(ctx context.Context, publish bool, perm, name string
 		return err
 	}
 
-	if publish {
+	if publishing.PublishSync {
 		pubs, err := GetPublisherFromContext(ctx)
 		if err != nil {
 			return err
@@ -780,7 +837,9 @@ func (fs *Filesystem) Chmod(ctx context.Context, publish bool, perm, name string
 		if err != nil {
 			return err
 		}
+	}
 
+	if publishing.PublishIntermediate {
 		msg := producer.Message{
 			Command:       "chmod",
 			Token:         token,
@@ -790,7 +849,69 @@ func (fs *Filesystem) Chmod(ctx context.Context, publish bool, perm, name string
 			Buffer:        []byte{},
 		}
 
-		r := producer.Retry(producer.ProduceCommand, 3e9)
+		r := producer.Retry(producer.ProduceCommand, 1e9)
+		go r(ctx, msg)
+	}
+
+	return nil
+}
+
+func (fs *Filesystem) Chown(ctx context.Context, publishing model.Publishing, name string, uidstr string) error {
+	absName := fs.absPath(name)
+	_, err := fs.verifyPath(name)
+	if err != nil {
+		return errors.New(err.Error())
+	}
+
+	uid, err := strconv.Atoi(uidstr)
+	if err != nil {
+		return errors.New(err.Error())
+	}
+
+	err = fs.MFS.Chown(absName, uid, uid)
+	if err != nil {
+		return errors.New(err.Error())
+	}
+
+	token, err := GetTokenFromContext(ctx)
+	if err != nil {
+		return err
+	}
+
+	if publishing.PublishSync {
+		pubs, err := GetPublisherFromContext(ctx)
+		if err != nil {
+			return err
+		}
+
+		clientID, err := GetClientIDFromContext(ctx)
+		if err != nil {
+			return err
+		}
+
+		// Sync to other client
+		msgSync := pubsub_notify.MessageCommand{
+			FullCommand: fmt.Sprintf("%s %d %s", "chown", uid, "/"+absName),
+			ClientID:    clientID,
+		}
+
+		err = pubs.Publish(ctx, msgSync)
+		if err != nil {
+			return err
+		}
+	}
+
+	if publishing.PublishIntermediate {
+		msg := producer.Message{
+			Command:       "chown",
+			Token:         token,
+			AbsPathSource: absName,
+			Uid:           uid,
+			AbsPathDest:   "",
+			Buffer:        []byte{},
+		}
+
+		r := producer.Retry(producer.ProduceCommand, 1e9)
 		go r(ctx, msg)
 	}
 
@@ -856,10 +977,10 @@ func (fs *Filesystem) Cat(ctx context.Context, publishing model.Publishing, path
 	return nil
 }
 
-func (fs *Filesystem) DownloadFile(ctx context.Context, publish bool, pathSource, pathDest string) error {
+func (fs *Filesystem) DownloadFile(ctx context.Context, publishing model.Publishing, pathSource, pathDest string) error {
 	pathSource = fs.absPath(pathSource)
 
-	_, err := fs.Stat(pathSource)
+	_, err := fs.MFS.Stat(pathSource)
 	if err != nil {
 		return fmt.Errorf("download : cannot stat '%s': no such file or directory", pathSource)
 	}
@@ -922,7 +1043,7 @@ func (fs *Filesystem) DownloadFile(ctx context.Context, publish bool, pathSource
 	return nil
 }
 
-func (fs *Filesystem) DownloadRecursive(ctx context.Context, publish bool, pathSource, pathDest string) error {
+func (fs *Filesystem) DownloadRecursive(ctx context.Context, publishing model.Publishing, pathSource, pathDest string) error {
 	fsSource, _ := fs.searchFS(pathSource)
 
 	_, err := fs.Stat(pathSource)
@@ -1009,7 +1130,7 @@ type MigrateResp struct {
 	Error   string `json:"error"`
 }
 
-func (fs *Filesystem) Migrate(ctx context.Context, publish bool, pathSource, pathDest string) error {
+func (fs *Filesystem) Migrate(ctx context.Context, publishing model.Publishing, pathSource, pathDest string) error {
 	s := spinner.New(spinner.CharSets[14], 150*time.Millisecond) // Build our new spinner
 	s.Start()
 	s.Suffix = fmt.Sprintf(" Migrating in progress...") // Start the spinner

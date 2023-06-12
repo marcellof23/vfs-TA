@@ -28,6 +28,7 @@ func New(maxFileSize int64) *Filesystem {
 	// root = makeFilesystem(".", ".", nil)
 
 	statBackup, _ := os.Stat("backup")
+	//time.Sleep(30 * time.Second)
 	root.MFS.Chmod("/", statBackup.Mode())
 	root.MFS.Chown("/", 1055, 1055)
 	fsys := root
@@ -36,17 +37,18 @@ func New(maxFileSize int64) *Filesystem {
 
 // testFilessytemCreation initializes the Filesystem by replicating
 // the current root directory and all it's child direcctories.
-func copyFilesystem(ctx context.Context, publishing model.Publishing, dirName, replicatePath, targetPath string, fs *Filesystem) *Filesystem {
+func copyFilesystem(ctx context.Context, publishing model.Publishing, dirName, replicatePath, targetPath, reqID string, fs *Filesystem) (int, *Filesystem) {
 	var fileName gofs.DirEntry
 	var fi os.FileInfo
 
 	userState, ok := ctx.Value("userState").(model.UserState)
 	if !ok {
-		return &Filesystem{}
+		//fmt.Println("ERROR: userState not initiated")
+		return -1, &Filesystem{}
 	}
 
 	index := 0
-
+	total := 0
 	files, _ := os.ReadDir(replicatePath)
 	for index < len(files) {
 		fileName = files[index]
@@ -59,7 +61,8 @@ func copyFilesystem(ctx context.Context, publishing model.Publishing, dirName, r
 			fs.MkDir(ctx, publishing, dirname)
 			fs.MFS.Chmod(dirname, mode.Perm())
 			fs.MFS.Chown(filepath.ToSlash(filepath.Clean(filepath.Join(fs.rootPath, dirname))), userState.UserID, userState.GroupID)
-			copyFilesystem(ctx, publishing, dirName+"/"+fileName.Name(), replicatePath+"/"+fileName.Name(), targetPath, fs.directories[fileName.Name()])
+			cnt, _ := copyFilesystem(ctx, publishing, dirName+"/"+fileName.Name(), replicatePath+"/"+fileName.Name(), targetPath, reqID, fs.directories[fileName.Name()])
+			total += cnt
 		} else {
 			fs.files[fileName.Name()] = &file{
 				name:     fileName.Name(),
@@ -102,6 +105,7 @@ func copyFilesystem(ctx context.Context, publishing model.Publishing, dirName, r
 				pubs.Publish(ctx, msgSync)
 			}
 
+			totalChunk := 0
 			if publishing.PublishIntermediate {
 				msg := producer.Message{
 					Command:       "upload",
@@ -110,6 +114,7 @@ func copyFilesystem(ctx context.Context, publishing model.Publishing, dirName, r
 					AbsPathDest:   targetPath,
 					Buffer:        []byte{},
 					FileMode:      uint64(mode),
+					RequestID:     reqID,
 					Uid:           userState.UserID,
 					Gid:           userState.GroupID,
 				}
@@ -117,7 +122,7 @@ func copyFilesystem(ctx context.Context, publishing model.Publishing, dirName, r
 				if fi.Size() <= int64(LargeFileConstraint) {
 					memfile.Write(dat)
 					msg.Buffer = dat
-					r := producer.Retry(producer.ProduceCommand, 3e9)
+					r := producer.Retry(producer.ProduceCommand, 1e9)
 					go r(ctx, msg)
 				} else {
 					producer.ProduceCommand(ctx, msg)
@@ -132,14 +137,21 @@ func copyFilesystem(ctx context.Context, publishing model.Publishing, dirName, r
 						Gid:           userState.GroupID,
 					}
 
-					_ = fileChunker.Process(fl)
+					totalChunk, _ = fileChunker.Process(fl, reqID)
 				}
 			}
+
+			if fi.Size() <= int64(LargeFileConstraint) {
+				total += 1
+			} else {
+				total += totalChunk
+			}
+
 		}
 
 		index++
 	}
-	return fs
+	return total, fs
 }
 
 // testFilessytemCreation initializes the Filesystem by replicating
@@ -179,7 +191,7 @@ func ReplicateFilesystem(dirName, replicatePath string, fs *Filesystem, maxFileS
 			memfile.Write(dat)
 
 			fnameClean := filepath.ToSlash(filepath.Clean(fname))
-			LruCache.Put(fnameClean, int64(len(dat)), []byte{}, fs)
+			LruCache.Put(fnameClean, int64(len(dat)), dat, fs)
 			fs.MFS.Chmod(fnameClean, mode)
 			fs.MFS.Chown(fnameClean, int(fi.Sys().(*syscall.Stat_t).Uid), int(fi.Sys().(*syscall.Stat_t).Gid))
 
